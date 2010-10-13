@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <tryton>
 	<data>
-		<menuitem name="Contracts" id="contract_menu"/>
+		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-users"/>
 		<record model="ir.ui.view" id="contract_view_form">
 			<field name="model">contract.contract</field>
 			<field name="type">form</field>
@@ -30,6 +30,7 @@
 					<field name="stop_date"/>
 				</form>
 				]]>
+			</field>
 		</record>
 		<record model="ir.ui.view" id="contract_view_tree">
 			<field name="model">contract.contract</field>
@@ -45,7 +46,32 @@
 					<field name="next_invoice_date" select="2"/>
 				</tree>
 				]]>
+			</field>
 		</record>
+		<record model="ir.action.act_window" id="act_contract_form">
+			<field name="name">Contracts</field>
+			<field name="res_model">contract.contract</field>
+			<field name="view_type">form</field>
+		</record>
+		<record model="ir.action.act_window.view" id="act_contract_form_view1">
+			<field name="sequence" eval="10"/>
+			<field name="view" ref="contract_view_tree"/>
+			<field name="act_window" ref="act_contract_form"/>
+		</record>
+		<record model="ir.action.act_window.view" id="act_contract_form_view2">
+			<field name="sequence" eval="20"/>
+			<field name="view" ref="contract_view_form"/>
+			<field name="act_window" ref="act_contract_form"/>
+		</record>
+
+		<menuitem parent="contract_menu" sequence="1"
+			id="menu_contract_form" icon="tryton-list" action="act_contract_form"/>
+
+		<record model="ir.rule.group" id="rule_group_contract">
+			<field name="model" search="[('model', '=', 'contract.contract')]"/>
+			<field name="global_p" eval="True"/>
+		</record>
+
 	</data>
 </tryton>
 

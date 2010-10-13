@@ -5,12 +5,12 @@ from trytond.model import ModelView, ModelSQL, fields
 from trytond.wizard import Wizard
 from trytond.report import Report
 from trytond.tools import reduce_ids
-from trytond.pyson import Equal, Eval, Not, PYSONEncoder, Date
+from trytond.pyson import Equal, Eval, Not, PYSONEncoder, Date, Bool
 from trytond.transaction import Transaction
 
 
 STATES = {
-    'readonly':  Not(Equal(Eval('active'))),
+    'readonly':  Bool(Eval('active')),
 }
 
 class Contract(ModelSQL, ModelView):
@@ -19,9 +19,9 @@ class Contract(ModelSQL, ModelView):
     _description = __doc__
 
     name = fields.Char('Name', required=True, translate=True)
-    party = fields.many2one('party.party', 'Party', required=True, 
+    party = fields.Many2One('party.party', 'Party', required=True, 
                             states=STATES)
-    product = fields.many2one('product.product', 'Product', required=True,
+    product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
 
     active = fields.Boolean('Active', select=1)
@@ -30,7 +30,7 @@ class Contract(ModelSQL, ModelView):
         ('week','Week'),
         ('month','Month'),
         ('year','Year'),
-    ])
+    ], 'Interval', required=True, states=STATES)
     interval_quant = fields.Property(fields.Numeric('Interval count',
                                                     digits=(16,2)))
     next_invoice_date = fields.Date('Next Invoice')
