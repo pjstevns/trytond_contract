@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<tryton>
+	<data>
+		<menuitem name="Contracts" id="contract_menu"/>
+		<record model="ir.ui.view" id="contract_view_form">
+			<field name="model">contract.contract</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<![CDATA[
+				<form string="Contract" col="6" cursor="party">
+					<label name="name"/>
+					<field name="name"/>
+					<label name="party"/>
+					<field name="party"/>
+					<label name="product"/>
+					<field name="product"/>
+					<newline/>
+					<label name="active"/>
+					<field name="active"/>
+					<label name="interval"/>
+					<field name="interval"/>
+					<label name="interval_quant"/>
+					<field name="interval_quant"/>
+					<newline/>
+					<label name="next_invoice_date"/>
+					<field name="next_invoice_date"/>
+					<label name="start_date"/>
+					<field name="start_date"/>
+					<label name="stop_date"/>
+					<field name="stop_date"/>
+				</form>
+				]]>
+		</record>
+		<record model="ir.ui.view" id="contract_view_tree">
+			<field name="model">contract.contract</field>
+			<field name="type">tree</field>
+			<field name="arch" type="xml">
+				<![CDATA[
+				<tree string="Contracts">
+					<field name="name" select="1"/>
+					<field name="party" select="1"/>
+					<field name="product" select="1"/>
+					<field name="active" select="1"/>
+					<field name="interval" select="2"/>
+					<field name="next_invoice_date" select="2"/>
+				</tree>
+				]]>
+		</record>
+	</data>
+</tryton>
+
+
