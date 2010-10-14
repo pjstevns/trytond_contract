@@ -29,15 +29,26 @@
 					<label name="stop_date"/>
 					<field name="stop_date"/>
 					<newline/>
-					<label colspan="6" name="lines"/>
-					<field colspan="6" name="lines"/>
+					<field colspan="6" name="lines">
+						<tree string="Lines" sequence="sequence" fill="1">
+							<field name="invoice"/>
+							<field name="description"/>
+							<field name="quantity"/>
+							<field name="unit"/>
+							<field name="sequence" tree_invisible="1"/>
+						</tree>
+					</field>
 					<group colspan="6" id="buttons">
 						<button name="cancel" string="_Cancel"                      
-							states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  
+							states="{'invisible': Not(In(Eval('state'), ['draft', 'active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  
 							icon="tryton-cancel"/>                                  
 						<button name="activate" string="_Activate"                          
 							states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"
 							icon="tryton-ok"/>                                      
+						<button name="%(create_next_invoice)d" string="_Create_Invoice"
+							type="action"
+							states="{'invisible': Not(Equal(Eval('state'), ['active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"
+							icon="tryton-go-next"/>
 					</group>
 				</form>
 				]]>
@@ -131,6 +142,13 @@
 			<field name="act_to" ref="contract_activity_cancel"/>
 			<field name="signal">cancel</field>
 			<field name="group" ref="account.group_account"/>
+		</record>
+
+		<!-- wizards -->
+		<record model="ir.action.wizard" id="wizard_invoice_contract">
+			<field name="name">Create Next Invoice</field>
+			<field name="wiz_name">contract.contract.create_next_invoice</field>
+			<field name="model">contract.contract</field>
 		</record>
 	</data>
 </tryton>

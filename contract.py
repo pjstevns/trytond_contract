@@ -72,4 +72,12 @@ class InvoiceLine(ModelSQL, ModelView):
 
 InvoiceLine()
 
+class CreateNextInvoice(Wizard):
+    'Create Next Invoice'
+    _name='contract.contract.create_next_invoice'
+
+
+CreateNextInvoice()
+
+
 
