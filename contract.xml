@@ -29,6 +29,11 @@
 					<label name="stop_date"/>
 					<field name="stop_date"/>
 					<newline/>
+					<label name="account_product"/>
+					<field name="account_product"/>
+					<label name="account"/>
+					<field name="account"/>
+					<newline/>
 					<field colspan="6" name="lines">
 						<tree string="Lines" sequence="sequence" fill="1">
 							<field name="invoice"/>
@@ -45,10 +50,6 @@
 						<button name="activate" string="_Activate"                          
 							states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"
 							icon="tryton-ok"/>                                      
-						<button name="%(create_next_invoice)d" string="_Create_Invoice"
-							type="action"
-							states="{'invisible': Not(Equal(Eval('state'), ['active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"
-							icon="tryton-go-next"/>
 					</group>
 				</form>
 				]]>
@@ -149,6 +150,11 @@
 			<field name="name">Create Next Invoice</field>
 			<field name="wiz_name">contract.contract.create_next_invoice</field>
 			<field name="model">contract.contract</field>
+		</record>
+		<record model="ir.action.keyword" id="wizard_invoice_contract_keyword">
+			<field name="keyword">form_action</field>
+			<field name="model">contract.contract,0</field>
+			<field name="action" ref="wizard_invoice_contract"/>
 		</record>
 	</data>
 </tryton>

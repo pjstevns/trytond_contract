@@ -26,6 +26,14 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                             states=STATES)
     product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
+    account = fields.Many2One('account.account', 'Account',
+                              states={
+                                  'invisible': Bool(Eval('account_product')),
+                                  'required': Not(Bool(Eval('account_product'))),
+                              }
+                             )
+    account_product = fields.Boolean('Use Product\'s account')
+
     state = fields.Selection([
         ('draft','Draft'),
         ('active','Active'),
@@ -42,13 +50,17 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     next_invoice_date = fields.Date('Next Invoice', states=STATES)
     start_date = fields.Date('Since', states=STATES)
     stop_date = fields.Date('Until')
-    lines = fields.One2Many('account.invoice.line', 'contract', 'Invoice Lines')
+    lines = fields.One2Many('account.invoice.line', 'contract', 'Invoice Lines',
+                           readonly=True)
 
     def default_state(self):
         return 'draft'
 
     def default_interval(self):
         return 'month'
+
+    def default_account_product(self):
+        return True
 
     def default_interval_quant(self):
         return Decimal("3.0")
@@ -63,7 +75,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
 Contract()
 
-
 class InvoiceLine(ModelSQL, ModelView):
     """Invoice Line"""
     _name = 'account.invoice.line'
@@ -75,7 +86,29 @@ InvoiceLine()
 class CreateNextInvoice(Wizard):
     'Create Next Invoice'
     _name='contract.contract.create_next_invoice'
+    states = {
+        'init': {
+            'actions': ['_next_invoice'],
+            'result': {
+                'type': 'state',
+                'state': 'end',
+            },
+        },
+    }
 
+    def _next_invoice(self, data):
+        log.debug('data: %s' % data)
+
+        id = data.get('id')
+        contract_obj = self.pool.get('contract.contract')
+        contract = contract_obj.browse([id])[0]
+
+        log.debug('contract: %s' % contract)
+        log.debug('party: %s' % contract.party)
+        log.debug('product: %s' % contract.product)
+
+
+        return {}
 
 CreateNextInvoice()
 
