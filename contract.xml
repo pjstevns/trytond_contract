@@ -8,6 +8,13 @@
 			<field name="arch" type="xml">
 				<![CDATA[
 				<form string="Contract" col="6" cursor="party">
+					<label name="company"/>
+					<field name="company"/>
+					<label name="description"/>
+					<field name="description"/>
+					<label name="journal"/>
+					<field name="journal"/>
+					<newline/>
 					<label name="name"/>
 					<field name="name"/>
 					<label name="party"/>
