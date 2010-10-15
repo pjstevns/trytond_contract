@@ -36,6 +36,8 @@
 					<label name="stop_date"/>
 					<field name="stop_date"/>
 					<newline/>
+					<label name="payment_term"/>
+					<field name="payment_term"/>
 					<label name="account_product"/>
 					<field name="account_product"/>
 					<label name="account"/>
@@ -73,6 +75,9 @@
 					<field name="product" select="1"/>
 					<field name="state" select="2"/>
 					<field name="interval" select="2"/>
+					<field name="interval_quant" select="2"/>
+					<field name="start_date" select="2"/>
+					<field name="stop_date" select="2"/>
 					<field name="next_invoice_date" select="2"/>
 				</tree>
 				]]>

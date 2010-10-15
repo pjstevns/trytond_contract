@@ -47,6 +47,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                               }
                              )
     account_product = fields.Boolean('Use Product\'s account')
+    payment_term = fields.Many2One('account.invoice.payment_term',
+                                   'Payment Term', required=True,
+                                   states=STATES)
+
 
     state = fields.Selection([
         ('draft','Draft'),
@@ -59,8 +63,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         ('month','Month'),
         ('year','Year'),
     ], 'Interval', required=True, states=STATES)
-    interval_quant = fields.Numeric('Interval count', digits=(16,2),
-                                    states=STATES)
+    interval_quant = fields.Integer('Interval count', states=STATES)
     next_invoice_date = fields.Date('Next Invoice', states=STATES)
     start_date = fields.Date('Since', states=STATES)
     stop_date = fields.Date('Until')
@@ -187,7 +190,7 @@ class CreateNextInvoice(Wizard):
         ## open invoice
         invoice = invoice_obj.browse([invoice])[0]
         invoice.write(invoice.id, {'invoice_date': today})
-        invoice.workflow_trigger_validate(invoice.id, 'open')
+        invoice.workflow_trigger_validate(invoice.id, 'draft')
 
         ## update fields
         contract.write(contract.id, {'next_invoice_date': next_date})
