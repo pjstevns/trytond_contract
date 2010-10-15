@@ -38,8 +38,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
     party = fields.Many2One('party.party', 'Party', required=True, 
                             states=STATES)
+
     product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
+
+    quantity = fields.Numeric('Quantity', digits=(16,2), states=STATES)
+
     account = fields.Many2One('account.account', 'Account',
                               states={
                                   'invisible': Bool(Eval('account_product')),
@@ -70,14 +74,27 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     lines = fields.One2Many('account.invoice.line', 'contract', 'Invoice Lines',
                            readonly=True, domain=[('contract','=',Eval('id'))])
 
+
+    def __init__(self):
+        super(Contract, self).__init__()
+        self._rpc.update({
+            'create_next_invoice': True
+        })
+
     def default_state(self):
         return 'draft'
 
     def default_interval(self):
         return 'month'
 
+    def default_quantity(self):
+        return Decimal('1.0')
+
     def default_account_product(self):
         return True
+
+    def default_start_date(self):
+        return datetime.date.fromtimestamp(time.time())
 
     def default_interval_quant(self):
         return Decimal("3.0")
@@ -90,35 +107,14 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         return None
 
-Contract()
-
-class InvoiceLine(ModelSQL, ModelView):
-    """Invoice Line"""
-    _name = 'account.invoice.line'
-    contract = fields.Many2One('contract.contract', 'Contract')
-
-InvoiceLine()
-
-class CreateNextInvoice(Wizard):
-    'Create Next Invoice'
-    _name='contract.contract.create_next_invoice'
-    states = {
-        'init': {
-            'actions': ['_next_invoice'],
-            'result': {
-                'type': 'state',
-                'state': 'end',
-            },
-        },
-    }
-
-    def _next_invoice(self, data):
-        id = data.get('id')
+    def create_next_invoice(self, ids):
         contract_obj = self.pool.get('contract.contract')
-        contract = contract_obj.browse([id])[0]
+        contract = self.browse(ids)[0]
+
         if not contract.state == 'active':
             return {}
 
+        log.info("here")
         invoice_obj = self.pool.get('account.invoice')
         line_obj = self.pool.get('account.invoice.line')
 
@@ -162,7 +158,7 @@ class CreateNextInvoice(Wizard):
             currency=contract.company.currency.id,
             journal=contract.journal.id,
             account=contract.party.account_receivable.id,
-            payment_term=contract.party.payment_term.id,
+            payment_term=contract.payment_term.id or contract.party.payment_term.id,
             party=contract.party.id,
             invoice_address=invoice_addr.id
         ))
@@ -180,7 +176,7 @@ class CreateNextInvoice(Wizard):
                                              contract.product.name,
                                              contract.name,
                                              last_date, next_date),
-            quantity=contract.interval_quant,
+            quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
             account=account.id,
             unit=contract.product.default_uom.id,
             unit_price=contract.product.list_price,
@@ -193,8 +189,34 @@ class CreateNextInvoice(Wizard):
         invoice.workflow_trigger_validate(invoice.id, 'draft')
 
         ## update fields
-        contract.write(contract.id, {'next_invoice_date': next_date})
+        self.write(contract.id, {'next_invoice_date': next_date})
 
+ 
+Contract()
+
+class InvoiceLine(ModelSQL, ModelView):
+    """Invoice Line"""
+    _name = 'account.invoice.line'
+    contract = fields.Many2One('contract.contract', 'Contract')
+
+InvoiceLine()
+
+class CreateNextInvoice(Wizard):
+    'Create Next Invoice'
+    _name='contract.contract.create_next_invoice'
+    states = {
+        'init': {
+            'actions': ['_next_invoice'],
+            'result': {
+                'type': 'state',
+                'state': 'end',
+            },
+        },
+    }
+
+    def _next_invoice(self, data):
+        contract_obj = self.pool.get('contract.contract')
+        contract_obj.create_next_invoice([data['id']])
         return {}
 
 CreateNextInvoice()

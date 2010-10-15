@@ -43,6 +43,9 @@
 					<label name="account"/>
 					<field name="account"/>
 					<newline/>
+					<label name="quantity"/>
+					<field name="quantity"/>
+					<newline/>
 					<field colspan="6" name="lines">
 						<tree string="Lines" sequence="sequence" fill="1">
 							<field name="invoice"/>
