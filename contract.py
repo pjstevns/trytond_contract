@@ -29,15 +29,18 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                               Get(Eval('context', {}), 'company', 0)),
                          ])
 
-    journal = fields.Many2One('account.journal', 'Journal', required=True,                                                                                                             
-                                      states=STATES, domain=[('centralised', '=', False)])
+    journal = fields.Many2One('account.journal', 'Journal', required=True, 
+                              states=STATES, domain=[('centralised', '=', False)])
 
     name = fields.Char('Name', required=True, translate=True)
 
     description = fields.Char('Description', size=None, translate=True)
 
     party = fields.Many2One('party.party', 'Party', required=True, 
-                            states=STATES)
+                            states=STATES, on_change=['party'])
+
+    invoice_address = fields.Many2One('party.address','Invoice Address',
+                                      required=True, domain=[('party','=',Eval('party'))])
 
     product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
@@ -93,11 +96,55 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def default_account_product(self):
         return True
 
+    def default_company(self):
+        return Transaction().context.get('company') or False
+
     def default_start_date(self):
         return datetime.date.fromtimestamp(time.time())
 
     def default_interval_quant(self):
         return Decimal("3.0")
+
+    def default_payment_term(self):
+        company_id = self.default_company()
+        company_obj = self.pool.get('company.company')
+        company = company_obj.browse(company_id)
+        if company and company.payment_term:
+            return company.payment_term.id
+        return False
+
+    def default_journal(self):
+        journal_obj = self.pool.get('account.journal')
+        journal_ids = journal_obj.search([('type','=','revenue')], limit=1)
+        if journal_ids:
+            return journal_ids[0]
+        return False
+
+    def on_change_party(self, vals):
+        party_obj = self.pool.get('party.party')
+        address_obj = self.pool.get('party.address')
+        account_obj = self.pool.get('account.account')
+        payment_term_obj = self.pool.get('account.invoice.payment_term')
+        res = {
+            'invoice_address': False,
+            'account': False,
+        }
+        if vals.get('party'):
+            party = party_obj.browse(vals['party'])
+            res['invoice_address'] = party_obj.address_get(
+                party.id, type='invoice')
+            res['invoice_address.rec_name'] = address_obj.browse(
+                res['invoice_address']).rec_name
+            res['account'] = party.account_receivable.id
+            res['account.res_name'] = account_obj.browse(
+                res['account']).rec_name
+            
+            payment_term = party.payment_term or False
+            if payment_term:
+                res['payment_term'] = payment_term.id
+                res['payment_term.rec_name'] = payment_term_obj.browse(
+                    res['payment_term']).rec_name
+        return res
 
     def write(self, ids, vals):
         log.info("%s:%s" % ( ids, vals))
@@ -114,7 +161,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if not contract.state == 'active':
             return {}
 
-        log.info("here")
         invoice_obj = self.pool.get('account.invoice')
         line_obj = self.pool.get('account.invoice.line')
 
@@ -168,6 +214,9 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                 contract.product.account_revenue or \
                 contract.product.category.account_revenue
 
+        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
+
+        log.info("taxes: %s" % taxes)
         line = line_obj.create(dict(
             type='line',
             product=contract.product.id,
@@ -186,7 +235,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         ## open invoice
         invoice = invoice_obj.browse([invoice])[0]
         invoice.write(invoice.id, {'invoice_date': today})
-        invoice.workflow_trigger_validate(invoice.id, 'draft')
 
         ## update fields
         self.write(contract.id, {'next_invoice_date': next_date})

@@ -8,45 +8,27 @@
 			<field name="arch" type="xml">
 				<![CDATA[
 				<form string="Contract" col="6" cursor="party">
-					<label name="company"/>
-					<field name="company"/>
-					<label name="description"/>
-					<field name="description"/>
-					<label name="journal"/>
-					<field name="journal"/>
+					<label name="name"/> <field name="name"/>
+					<label name="description"/> <field name="description"/>
+					<label name="company"/> <field name="company"/>
 					<newline/>
-					<label name="name"/>
-					<field name="name"/>
-					<label name="party"/>
-					<field name="party"/>
-					<label name="product"/>
-					<field name="product"/>
+					<label name="product"/> <field name="product"/>
+					<label name="party"/> <field name="party"/>
+					<label name="payment_term"/> <field name="payment_term"/>
 					<newline/>
-					<label name="state"/>
-					<field name="state"/>
-					<label name="interval"/>
-					<field name="interval"/>
-					<label name="interval_quant"/>
-					<field name="interval_quant"/>
+					<label name="quantity"/> <field name="quantity"/>
+					<label name="interval"/> <field name="interval"/>
+					<label name="interval_quant"/> <field name="interval_quant"/>
 					<newline/>
-					<label name="next_invoice_date"/>
-					<field name="next_invoice_date"/>
-					<label name="start_date"/>
-					<field name="start_date"/>
-					<label name="stop_date"/>
-					<field name="stop_date"/>
+					<label name="next_invoice_date"/> <field name="next_invoice_date"/>
+					<label name="start_date"/> <field name="start_date"/>
+					<label name="stop_date"/> <field name="stop_date"/>
 					<newline/>
-					<label name="payment_term"/>
-					<field name="payment_term"/>
-					<label name="account_product"/>
-					<field name="account_product"/>
-					<label name="account"/>
-					<field name="account"/>
+					<label name="account_product"/> <field name="account_product"/>
+					<label name="account"/> <field name="account"/>
+					<label name="journal"/> <field name="journal"/>
 					<newline/>
-					<label name="quantity"/>
-					<field name="quantity"/>
-					<newline/>
-					<field colspan="6" name="lines">
+					<field colspan="4" name="lines">
 						<tree string="Lines" sequence="sequence" fill="1">
 							<field name="invoice"/>
 							<field name="description"/>
@@ -55,13 +37,13 @@
 							<field name="sequence" tree_invisible="1"/>
 						</tree>
 					</field>
-					<group colspan="6" id="buttons">
-						<button name="cancel" string="_Cancel"                      
-							states="{'invisible': Not(In(Eval('state'), ['draft', 'active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  
-							icon="tryton-cancel"/>                                  
-						<button name="activate" string="_Activate"                          
-							states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"
-							icon="tryton-ok"/>                                      
+					<group col="2" colspan="2" id="sidepane">
+						<label name="state"/> <field name="state"/>
+						<newline/>
+						<group colspan="2" id="buttons">
+						<button name="activate" string="_Activate" states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}" icon="tryton-ok"/>                                      
+						<button name="cancel" string="_Cancel" states="{'invisible': Not(In(Eval('state'), ['draft', 'active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  icon="tryton-cancel"/>                                  
+						</group>
 					</group>
 				</form>
 				]]>
@@ -88,6 +70,8 @@
 		</record>
 
 		<!-- connect views to navigation -->
+		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-users"/>
+
 		<record model="ir.action.act_window" id="act_contract_form">
 			<field name="name">Contracts</field>
 			<field name="res_model">contract.contract</field>
@@ -103,9 +87,26 @@
 			<field name="view" ref="contract_view_form"/>
 			<field name="act_window" ref="act_contract_form"/>
 		</record>
-		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-users"/>
 		<menuitem parent="contract_menu" sequence="1"
 			id="menu_contract_form" icon="tryton-list" action="act_contract_form"/>
+
+		<record model="ir.action.act_window" id="act_contract_new_form">
+			<field name="name">Contracts</field>
+			<field name="res_model">contract.contract</field>
+			<field name="view_type">form</field>
+		</record>
+		<record model="ir.action.act_window.view" id="act_contract_new_form_view1">
+			<field name="sequence" eval="10"/>
+			<field name="view" ref="contract_view_form"/>
+			<field name="act_window" ref="act_contract_new_form"/>
+		</record>
+		<record model="ir.action.act_window.view" id="act_contract_new_form_view2">
+			<field name="sequence" eval="20"/>
+			<field name="view" ref="contract_view_tree"/>
+			<field name="act_window" ref="act_contract_new_form"/>
+		</record>
+		<menuitem name="New Contract" parent="contract_menu" sequence="2"
+			id="menu_contract_new_form" action="act_contract_new_form"/>
 		
 		<!-- grant access -->
 		<record model="ir.rule.group" id="rule_group_contract">
