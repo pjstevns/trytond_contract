@@ -28,37 +28,18 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                              ('id', If(In('company', Eval('context', {})), '=', '!='),
                               Get(Eval('context', {}), 'company', 0)),
                          ])
-
     journal = fields.Many2One('account.journal', 'Journal', required=True, 
                               states=STATES, domain=[('centralised', '=', False)])
-
     name = fields.Char('Name', required=True, translate=True)
-
     description = fields.Char('Description', size=None, translate=True)
-
     party = fields.Many2One('party.party', 'Party', required=True, 
                             states=STATES, on_change=['party'])
-
-    invoice_address = fields.Many2One('party.address','Invoice Address',
-                                      required=True, domain=[('party','=',Eval('party'))])
-
     product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
-
     quantity = fields.Numeric('Quantity', digits=(16,2), states=STATES)
-
-    account = fields.Many2One('account.account', 'Account',
-                              states={
-                                  'invisible': Bool(Eval('account_product')),
-                                  'required': Not(Bool(Eval('account_product'))),
-                              }
-                             )
-    account_product = fields.Boolean('Use Product\'s account')
     payment_term = fields.Many2One('account.invoice.payment_term',
                                    'Payment Term', required=True,
                                    states=STATES)
-
-
     state = fields.Selection([
         ('draft','Draft'),
         ('active','Active'),
@@ -93,9 +74,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def default_quantity(self):
         return Decimal('1.0')
 
-    def default_account_product(self):
-        return True
-
     def default_company(self):
         return Transaction().context.get('company') or False
 
@@ -123,22 +101,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def on_change_party(self, vals):
         party_obj = self.pool.get('party.party')
         address_obj = self.pool.get('party.address')
-        account_obj = self.pool.get('account.account')
         payment_term_obj = self.pool.get('account.invoice.payment_term')
         res = {
             'invoice_address': False,
-            'account': False,
         }
         if vals.get('party'):
             party = party_obj.browse(vals['party'])
-            res['invoice_address'] = party_obj.address_get(
-                party.id, type='invoice')
-            res['invoice_address.rec_name'] = address_obj.browse(
-                res['invoice_address']).rec_name
-            res['account'] = party.account_receivable.id
-            res['account.res_name'] = account_obj.browse(
-                res['account']).rec_name
-            
             payment_term = party.payment_term or False
             if payment_term:
                 res['payment_term'] = payment_term.id
@@ -164,15 +132,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         invoice_obj = self.pool.get('account.invoice')
         line_obj = self.pool.get('account.invoice.line')
 
-        invoice_addr = contract.party.addresses[0]
-        for addr in contract.party.addresses:
-            if addr.invoice == True:
-                invoice_addr = addr
-                break
+        invoice_address = contract.party.address_get(contract.party.id, type='invoice')
 
         today = datetime.date.fromtimestamp(time.time())
 
         last_date = contract.next_invoice_date or contract.start_date or today
+
 
         if contract.interval == 'year':
             next_date = datetime.date(last_date.year + contract.interval_quant,
@@ -203,20 +168,18 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             state='draft',
             currency=contract.company.currency.id,
             journal=contract.journal.id,
-            account=contract.party.account_receivable.id,
+            account=contract.party.account_receivable.id or contract.company.account_receivable.id,
             payment_term=contract.payment_term.id or contract.party.payment_term.id,
             party=contract.party.id,
-            invoice_address=invoice_addr.id
+            invoice_address=invoice_address,
         ))
 
         ## create invoice line
-        account = contract.account or \
-                contract.product.account_revenue or \
-                contract.product.category.account_revenue
-
+        account = contract.product.get_account([contract.product.id],'account_revenue_used')
         taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
-
         log.info("taxes: %s" % taxes)
+        log.info("account: %s" % account)
+
         line = line_obj.create(dict(
             type='line',
             product=contract.product.id,
@@ -226,7 +189,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                                              contract.name,
                                              last_date, next_date),
             quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
-            account=account.id,
+            account=account,
             unit=contract.product.default_uom.id,
             unit_price=contract.product.list_price,
             contract=contract.id,

@@ -33,9 +33,9 @@
 							</field>
 						</page>
 						<page string="Info" id="info" col="6">
+							<label name="payment_term"/> <field name="payment_term"/>
 							<label name="company"/> <field name="company"/>
 							<label name="journal"/> <field name="journal"/>
-							<label name="payment_term"/> <field name="payment_term"/>
 							<newline/>
 							<label name="description"/> <field name="description"/>
 							<label name="account_product"/> <field name="account_product"/>
