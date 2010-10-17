@@ -9,12 +9,8 @@
 				<![CDATA[
 				<form string="Contract" col="6" cursor="party">
 					<label name="name"/> <field name="name"/>
-					<label name="description"/> <field name="description"/>
-					<label name="company"/> <field name="company"/>
-					<newline/>
 					<label name="product"/> <field name="product"/>
 					<label name="party"/> <field name="party"/>
-					<label name="payment_term"/> <field name="payment_term"/>
 					<newline/>
 					<label name="quantity"/> <field name="quantity"/>
 					<label name="interval"/> <field name="interval"/>
@@ -24,26 +20,32 @@
 					<label name="start_date"/> <field name="start_date"/>
 					<label name="stop_date"/> <field name="stop_date"/>
 					<newline/>
-					<label name="account_product"/> <field name="account_product"/>
-					<label name="account"/> <field name="account"/>
-					<label name="journal"/> <field name="journal"/>
-					<newline/>
-					<field colspan="4" name="lines">
-						<tree string="Lines" sequence="sequence" fill="1">
-							<field name="invoice"/>
-							<field name="description"/>
-							<field name="quantity"/>
-							<field name="unit"/>
-							<field name="sequence" tree_invisible="1"/>
-						</tree>
-					</field>
-					<group col="2" colspan="2" id="sidepane">
+					<notebook colspan="6">
+						<page string="Lines" id="lines" col="6">
+							<field colspan="6" name="lines">
+								<tree string="Lines" sequence="sequence" fill="1">
+									<field name="invoice"/>
+									<field name="description"/>
+									<field name="quantity"/>
+									<field name="unit"/>
+									<field name="sequence" tree_invisible="1"/>
+								</tree>
+							</field>
+						</page>
+						<page string="Info" id="info" col="6">
+							<label name="company"/> <field name="company"/>
+							<label name="journal"/> <field name="journal"/>
+							<label name="payment_term"/> <field name="payment_term"/>
+							<newline/>
+							<label name="description"/> <field name="description"/>
+							<label name="account_product"/> <field name="account_product"/>
+							<label name="account"/> <field name="account"/>
+						</page>
+					</notebook>
+					<group col="6" colspan="6" id="state">
 						<label name="state"/> <field name="state"/>
-						<newline/>
-						<group colspan="2" id="buttons">
 						<button name="activate" string="_Activate" states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}" icon="tryton-ok"/>                                      
 						<button name="cancel" string="_Cancel" states="{'invisible': Not(In(Eval('state'), ['draft', 'active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  icon="tryton-cancel"/>                                  
-						</group>
 					</group>
 				</form>
 				]]>
