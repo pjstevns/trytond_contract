@@ -115,7 +115,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return res
 
     def write(self, ids, vals):
-        log.info("%s:%s" % ( ids, vals))
         super(Contract, self).write(ids, vals)
         if 'state' in vals:
             self.workflow_trigger_trigger(ids)
@@ -159,6 +158,13 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             log.info('too early to invoice: %s + 30 days < %s', today, next_date)
             return {}
 
+        if next_date >= contract.stop_date:
+            log.info('contract stopped: %s >= %s' % (next_date, contract.stop_date))
+            return {}
+
+        account = contract.product.get_account([contract.product.id],'account_revenue_used')
+        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
+
         ## create a new invoice
         invoice = invoice_obj.create(dict(
             company=contract.company.id,
@@ -173,30 +179,33 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             party=contract.party.id,
             invoice_address=invoice_address,
         ))
+        invoice = invoice_obj.browse([invoice])[0]
 
         ## create invoice line
-        account = contract.product.get_account([contract.product.id],'account_revenue_used')
-        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
-        log.info("taxes: %s" % taxes)
-        log.info("account: %s" % account)
-
-        line = line_obj.create(dict(
+        linedata = dict(
             type='line',
             product=contract.product.id,
-            invoice=invoice,
+            invoice=invoice.id,
             description="%s (%s) %s - %s" % (contract.product.description or
                                              contract.product.name,
                                              contract.name,
                                              last_date, next_date),
             quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
-            account=account,
             unit=contract.product.default_uom.id,
             unit_price=contract.product.list_price,
             contract=contract.id,
-        ))
+            taxes=[],
+        )
+
+        if account: 
+            linedata['account'] = account.popitem()[1]
+
+        for tax in taxes.items():
+            linedata['taxes'].append(('add',tax[1]))
+
+        line = line_obj.create(linedata)
 
         ## open invoice
-        invoice = invoice_obj.browse([invoice])[0]
         invoice.write(invoice.id, {'invoice_date': today})
 
         ## update fields
