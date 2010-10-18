@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<tryton>
+	<data>
+		<record model="ir.ui.view" id="party_view_form">
+			<field name="model">party.party</field>
+			<field name="inherit" ref="party.party_view_form"/>
+			<field name="arch" type="xml">
+				<![CDATA[
+				<data>
+					<xpath expr="/form/notebook/page[@id=&quot;accounting&quot;]"
+						position="after">
+						<page string="Contracts" col="4" id="contracts">
+							<field name="contracts"/>
+						</page>
+					</xpath>
+				</data>
+				]]>
+			</field>
+		</record>
+
+	</data>
+</tryton>

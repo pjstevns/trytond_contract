@@ -178,7 +178,6 @@
 		<record model="ir.action.wizard" id="wizard_invoice_batch">
 			<field name="name">Next Invoice Batch</field>
 			<field name="wiz_name">contract.contract.create_invoice_batch</field>
-			<field name="model">contract.contract</field>
 		</record>
 		<menuitem parent="contract_menu" action="wizard_invoice_batch"
 			id="menu_invoice_batch"/>

@@ -11,6 +11,7 @@
 ''',
     'xml': [
         'contract.xml',
+        'party.xml',
     ],
     'depends': [
         'account',

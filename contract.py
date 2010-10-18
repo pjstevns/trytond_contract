@@ -281,6 +281,14 @@ class InvoiceLine(ModelSQL, ModelView):
 
 InvoiceLine()
 
+class Party(ModelSQL, ModelView):
+    """Party"""
+    _name = 'party.party'
+    contracts = fields.One2Many('contract.contract', 'party', 'Contracts',
+                               readonly=True)
+
+Party()
+
 class CreateNextInvoice(Wizard):
     'Create Next Invoice'
     _name='contract.contract.create_next_invoice'
