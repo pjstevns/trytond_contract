@@ -62,7 +62,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def __init__(self):
         super(Contract, self).__init__()
         self._rpc.update({
-            'create_next_invoice': True
+            'create_next_invoice': True,
+            'create_invoice_batch': True,
         })
 
     def default_state(self):
@@ -121,6 +122,55 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         return None
 
+    def _invoice_init(self, contract):
+        invoice_obj = self.pool.get('account.invoice')
+        invoice_address = contract.party.address_get(contract.party.id, type='invoice')
+        invoice = invoice_obj.create(dict(
+            company=contract.company.id,
+            type='out_invoice',
+            reference=contract.product.code or contract.product.name,
+            description=contract.description or contract.name,
+            state='draft',
+            currency=contract.company.currency.id,
+            journal=contract.journal.id,
+            account=contract.party.account_receivable.id or contract.company.account_receivable.id,
+            payment_term=contract.payment_term.id or contract.party.payment_term.id,
+            party=contract.party.id,
+            invoice_address=invoice_address,
+        ))
+        return invoice_obj.browse([invoice])[0]
+
+    def _invoice_append(self, invoice, contract, period):
+        (last_date, next_date) = period
+        line_obj = self.pool.get('account.invoice.line')
+        linedata = dict(
+            type='line',
+            product=contract.product.id,
+            invoice=invoice.id,
+            description="%s (%s) %s - %s" % (contract.product.description or
+                                             contract.product.name,
+                                             contract.name,
+                                             last_date, next_date),
+            quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
+            unit=contract.product.default_uom.id,
+            unit_price=contract.product.list_price,
+            contract=contract.id,
+            taxes=[],
+        )
+
+        account = contract.product.get_account([contract.product.id],'account_revenue_used')
+        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
+
+        if account: 
+            linedata['account'] = account.popitem()[1]
+
+        for tax in taxes.items():
+            linedata['taxes'].append(('add',tax[1]))
+
+        log.info(linedata)
+        return line_obj.create(linedata)
+
+
     def create_next_invoice(self, ids):
         contract_obj = self.pool.get('contract.contract')
         contract = self.browse(ids)[0]
@@ -128,15 +178,28 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if not contract.state == 'active':
             return {}
 
-        invoice_obj = self.pool.get('account.invoice')
-        line_obj = self.pool.get('account.invoice.line')
+        period = self._check_contract(contract)
+        if not period:
+            return {}
 
-        invoice_address = contract.party.address_get(contract.party.id, type='invoice')
-
+        (last_date, next_date) = period
         today = datetime.date.fromtimestamp(time.time())
 
-        last_date = contract.next_invoice_date or contract.start_date or today
+        ## create a new invoice
+        invoice = self._invoice_init(contract)
+        ## create invoice line
+        line = self._invoice_append(invoice, contract, (last_date, next_date))
 
+        ## open invoice
+        invoice.write(invoice.id, {'invoice_date': today})
+        self.write(contract.id, {'next_invoice_date': next_date})
+
+        return invoice.id
+
+
+    def _check_contract(self, contract):
+        today = datetime.date.fromtimestamp(time.time())
+        last_date = contract.next_invoice_date or contract.start_date or today
 
         if contract.interval == 'year':
             next_date = datetime.date(last_date.year + contract.interval_quant,
@@ -156,61 +219,58 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         if contract.next_invoice_date and today + datetime.timedelta(30) < contract.next_invoice_date:
             log.info('too early to invoice: %s + 30 days < %s', today, next_date)
-            return {}
+            return False
 
-        if next_date >= contract.stop_date:
+        if next_date and contract.stop_date and next_date >= contract.stop_date:
             log.info('contract stopped: %s >= %s' % (next_date, contract.stop_date))
-            return {}
+            return False
 
-        account = contract.product.get_account([contract.product.id],'account_revenue_used')
-        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
+        return (last_date, next_date)
 
-        ## create a new invoice
-        invoice = invoice_obj.create(dict(
-            company=contract.company.id,
-            type='out_invoice',
-            reference=contract.product.code or contract.product.name,
-            description=contract.description or contract.name,
-            state='draft',
-            currency=contract.company.currency.id,
-            journal=contract.journal.id,
-            account=contract.party.account_receivable.id or contract.company.account_receivable.id,
-            payment_term=contract.payment_term.id or contract.party.payment_term.id,
-            party=contract.party.id,
-            invoice_address=invoice_address,
-        ))
-        invoice = invoice_obj.browse([invoice])[0]
 
-        ## create invoice line
-        linedata = dict(
-            type='line',
-            product=contract.product.id,
-            invoice=invoice.id,
-            description="%s (%s) %s - %s" % (contract.product.description or
-                                             contract.product.name,
-                                             contract.name,
-                                             last_date, next_date),
-            quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
-            unit=contract.product.default_uom.id,
-            unit_price=contract.product.list_price,
-            contract=contract.id,
-            taxes=[],
-        )
+    def create_invoice_batch(self, party=None):
+        now = datetime.date.fromtimestamp(time.time())
+        end = now + datetime.timedelta(30)
+        
+        contract_obj = self.pool.get('contract.contract')
+        if not party:
+            contract_ids = contract_obj.search([
+                    ('state','=','active'), 
+                    ('start_date','<=',now),
+                ])
+        else:
+            if type(party) != type([1,]):
+                party = [party,]
 
-        if account: 
-            linedata['account'] = account.popitem()[1]
+            contract_ids = contract_obj.search([
+                    ('state','=','active'), 
+                    ('start_date','<=',now),
+                    ('party','in',party),
+                ])
 
-        for tax in taxes.items():
-            linedata['taxes'].append(('add',tax[1]))
+        if not contract_ids:
+            return []
 
-        line = line_obj.create(linedata)
+        batch = {}
+        contracts = contract_obj.browse(contract_ids)
+        for contract in contracts:
+            period = self._check_contract(contract)
+            log.info("next_date (%s): %s" % (contract, period))
+            if period:
+                if not batch.get(contract.party.id):
+                    batch[contract.party.id] = []
+                batch[contract.party.id].append((contract, period))
 
-        ## open invoice
-        invoice.write(invoice.id, {'invoice_date': today})
-
-        ## update fields
-        self.write(contract.id, {'next_invoice_date': next_date})
-
+        log.info("batch: %s" % batch)
+        res = []
+        for party, info in batch.items():
+            invoice = self._invoice_init(info[0][0])
+            for (contract, period) in info:
+                self._invoice_append(invoice, contract, period)
+                self.write(contract.id, {'next_invoice_date': period[1]})
+            invoice.write(invoice.id, {'invoice_date': now})
+            res.append(invoice.id)
+        return res
  
 Contract()
 
@@ -242,4 +302,22 @@ class CreateNextInvoice(Wizard):
 CreateNextInvoice()
 
 
+class CreateInvoiceBatch(Wizard):
+    'Create Invoice Batch'
+    _name='contract.contract.create_invoice_batch'
+    states = {
+        'init': {
+            'actions': ['_invoice_batch'],
+            'result': {
+                'type': 'state',
+                'state': 'end',
+            },
+        },
+    }
 
+    def _invoice_batch(self, data):
+        contract_obj = self.pool.get('contract.contract')
+        contract_obj.create_invoice_batch()
+        return {}
+
+CreateInvoiceBatch()
