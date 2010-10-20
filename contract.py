@@ -64,6 +64,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         self._rpc.update({
             'create_next_invoice': True,
             'create_invoice_batch': True,
+            'cancel_with_credit': True,
         })
 
     def default_state(self):
@@ -167,8 +168,30 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         for tax in taxes.items():
             linedata['taxes'].append(('add',tax[1]))
 
-        log.info(linedata)
         return line_obj.create(linedata)
+
+    def cancel_with_credit(self, ids):
+        contract_obj = self.pool.get('contract.contract')
+        contract = self.browse(ids)[0]
+        if not contract.state == 'active':
+            return {}
+
+        for id in ids:
+            self.workflow_trigger_validate(id, 'cancel')
+
+        invoice_obj = self.pool.get('account.invoice')
+        invoice_line_obj = self.pool.get('account.invoice.line')
+        line_ids = invoice_line_obj.search([('contract','in',ids)])
+        if not line_ids:
+            return {}
+
+        invoices = []
+        lines = invoice_line_obj.browse(line_ids)
+        for l in lines:
+            invoices.append(l.invoice.id)
+        invoice_obj.credit(invoices, refund=True)
+
+        return {}
 
 
     def create_next_invoice(self, ids):
@@ -255,13 +278,11 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         contracts = contract_obj.browse(contract_ids)
         for contract in contracts:
             period = self._check_contract(contract)
-            log.info("next_date (%s): %s" % (contract, period))
             if period:
                 if not batch.get(contract.party.id):
                     batch[contract.party.id] = []
                 batch[contract.party.id].append((contract, period))
 
-        log.info("batch: %s" % batch)
         res = []
         for party, info in batch.items():
             invoice = self._invoice_init(info[0][0])
@@ -272,6 +293,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             res.append(invoice.id)
         return res
  
+
 Contract()
 
 class InvoiceLine(ModelSQL, ModelView):
