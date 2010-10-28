@@ -38,8 +38,8 @@
 							<label name="journal"/> <field name="journal"/>
 							<newline/>
 							<label name="description"/> <field name="description"/>
-							<label name="account_product"/> <field name="account_product"/>
-							<label name="account"/> <field name="account"/>
+							<label name="list_price"/> <field name="list_price"/>
+							<label name="discount"/> <field name="discount"/>
 						</page>
 					</notebook>
 					<group col="6" colspan="6" id="state">

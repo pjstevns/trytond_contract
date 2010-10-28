@@ -36,6 +36,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                             states=STATES, on_change=['party'])
     product = fields.Many2One('product.product', 'Product', required=True,
                               states=STATES)
+    list_price = fields.Numeric('List Price', states=STATES,
+                                digits=(16, 4),
+                               help='''Fixed-price override. Leave at 0.0000 for no override. Use discount at 100% to set actual price to 0.0''')
+    discount = fields.Numeric('Discount (%)', states=STATES,
+                              digits=(4,2),
+                             help='Discount percentage on the list_price')
     quantity = fields.Numeric('Quantity', digits=(16,2), states=STATES)
     payment_term = fields.Many2One('account.invoice.payment_term',
                                    'Payment Term', required=True,
@@ -160,17 +166,23 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         )
 
         account = contract.product.get_account([contract.product.id],'account_revenue_used')
-        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
-
         if account: 
             linedata['account'] = account.popitem()[1]
 
+        taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
         for tax in taxes.items():
             linedata['taxes'].append(('add',tax[1]))
 
         return line_obj.create(linedata)
 
     def cancel_with_credit(self, ids):
+        """ 
+        
+        Contract is canceled. Open invoices are credited.
+        i.e. in case of failure to provide proper and
+        valid credentials such as an initial payment.
+
+        """
         contract_obj = self.pool.get('contract.contract')
         contract = self.browse(ids)[0]
         if not contract.state == 'active':
@@ -221,6 +233,17 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
 
     def _check_contract(self, contract):
+        """
+        returns tuple 'period' or False 
+
+        False is returned if this contract is not up for billing at this 
+        moment.
+
+        period is defined as (last_date, next_date) 
+        which are datetime values indicating the next billing period this
+        contract is due for.
+
+        """
         today = datetime.date.fromtimestamp(time.time())
         last_date = contract.next_invoice_date or contract.start_date or today
 
@@ -255,34 +278,44 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         now = datetime.date.fromtimestamp(time.time())
         end = now + datetime.timedelta(30)
         
+        """ 
+        get a list of all active contracts
+        """
         contract_obj = self.pool.get('contract.contract')
-        if not party:
-            contract_ids = contract_obj.search([
-                    ('state','=','active'), 
-                    ('start_date','<=',now),
-                ])
-        else:
+        query = [('state','=','active'), 
+                 ('start_date','<=',now),
+                ]
+
+        """
+        filter on party if required
+        """
+        if party:
             if type(party) != type([1,]):
                 party = [party,]
+            query.append(('party','in',party))
 
-            contract_ids = contract_obj.search([
-                    ('state','=','active'), 
-                    ('start_date','<=',now),
-                    ('party','in',party),
-                ])
+        contract_ids = contract_obj.search(query)
 
         if not contract_ids:
             return []
 
+        """
+        build the list of all billable contracts
+        and aggragate the result per party
+        """
         batch = {}
         contracts = contract_obj.browse(contract_ids)
         for contract in contracts:
             period = self._check_contract(contract)
             if period:
-                if not batch.get(contract.party.id):
-                    batch[contract.party.id] = []
-                batch[contract.party.id].append((contract, period))
+                key = contract.party.id
+                if not batch.get(key): batch[key] = []
+                batch[key].append((contract, period))
 
+        """
+        create draft invoices per party with lines
+        for all billable contracts
+        """
         res = []
         for party, info in batch.items():
             invoice = self._invoice_init(info[0][0])
