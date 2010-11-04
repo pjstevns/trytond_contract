@@ -49,6 +49,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     state = fields.Selection([
         ('draft','Draft'),
         ('active','Active'),
+        ('hold', 'Hold'),
         ('canceled','Canceled'),
     ], 'State', readonly=True)
     interval = fields.Selection([

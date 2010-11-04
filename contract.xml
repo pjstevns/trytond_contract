@@ -44,8 +44,10 @@
 					</notebook>
 					<group col="6" colspan="6" id="state">
 						<label name="state"/> <field name="state"/>
-						<button name="activate" string="_Activate" states="{'invisible': Not(In(Eval('state'), ['draft'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}" icon="tryton-ok"/>                                      
-						<button name="cancel" string="_Cancel" states="{'invisible': Not(In(Eval('state'), ['draft', 'active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  icon="tryton-cancel"/>                                  
+						<button name="active" string="_Activate" states="{'invisible': Not(In(Eval('state'), ['draft','hold'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}" icon="tryton-ok"/>
+						<button name="hold" string="_Hold" states="{'invisible': Not(In(Eval('state'), ['active'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}" icon="tryton-ok"/>
+						<button name="draft" string="_Draft" states="{'invisible': Not(In(Eval('state'), ['canceled','hold'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  icon="tryton-ok"/>
+						<button name="cancel" string="_Cancel" states="{'invisible': Not(In(Eval('state'), ['draft', 'active', 'hold'])), 'readonly': Not(In(%(account.group_account)d, Eval('groups', [])))}"  icon="tryton-cancel"/>
 					</group>
 				</form>
 				]]>
@@ -124,30 +126,35 @@
 		</record>
 		<!-- workflow states -->
 		<record model="workflow.activity" id="contract_activity_draft">
-			<field name="name">Draft</field>
+			<field name="name">draft</field>
 			<field name="workflow" ref="contract_workflow"/>
 			<field name="kind">function</field>
 			<field name="action">write({'state':'draft'})</field>
 			<field name="flow_start" eval="True"/>
 		</record>
 		<record model="workflow.activity" id="contract_activity_active">
-			<field name="name">Active</field>
+			<field name="name">active</field>
 			<field name="workflow" ref="contract_workflow"/>
 			<field name="kind">function</field>
 			<field name="action">write({'state':'active'})</field>
 		</record>
+		<record model="workflow.activity" id="contract_activity_hold">
+			<field name="name">hold</field>
+			<field name="workflow" ref="contract_workflow"/>
+			<field name="kind">function</field>
+			<field name="action">write({'state':'hold'})</field>
+		</record>
 		<record model="workflow.activity" id="contract_activity_cancel">
-			<field name="name">Canceled</field>
+			<field name="name">cancel</field>
 			<field name="workflow" ref="contract_workflow"/>
 			<field name="kind">function</field>
 			<field name="action">write({'state':'canceled'})</field>
-			<field name="flow_stop" eval="True"/>
 		</record>
 		<!-- workflow transitions -->
 		<record model="workflow.transition" id="contract_transition_draft_active">
 			<field name="act_from" ref="contract_activity_draft"/>
 			<field name="act_to" ref="contract_activity_active"/>
-			<field name="signal">activate</field>
+			<field name="signal">active</field>
 			<field name="group" ref="account.group_account"/>
 		</record>
 		<record model="workflow.transition" id="contract_transition_draft_cancel">
@@ -156,12 +163,43 @@
 			<field name="signal">cancel</field>
 			<field name="group" ref="account.group_account"/>
 		</record>
+		<record model="workflow.transition" id="contract_transition_active_hold">
+			<field name="act_from" ref="contract_activity_active"/>
+			<field name="act_to" ref="contract_activity_hold"/>
+			<field name="signal">hold</field>
+			<field name="group" ref="account.group_account"/>
+		</record>
+		<record model="workflow.transition" id="contract_transition_hold_active">
+			<field name="act_from" ref="contract_activity_hold"/>
+			<field name="act_to" ref="contract_activity_active"/>
+			<field name="signal">active</field>
+			<field name="group" ref="account.group_account"/>
+		</record>
+		<record model="workflow.transition" id="contract_transition_hold_cancel">
+			<field name="act_from" ref="contract_activity_hold"/>
+			<field name="act_to" ref="contract_activity_cancel"/>
+			<field name="signal">cancel</field>
+			<field name="group" ref="account.group_account"/>
+		</record>
+		<record model="workflow.transition" id="contract_transition_hold_draft">
+			<field name="act_from" ref="contract_activity_hold"/>
+			<field name="act_to" ref="contract_activity_draft"/>
+			<field name="signal">draft</field>
+			<field name="group" ref="account.group_account"/>
+		</record>
 		<record model="workflow.transition" id="contract_transition_active_cancel">
 			<field name="act_from" ref="contract_activity_active"/>
 			<field name="act_to" ref="contract_activity_cancel"/>
 			<field name="signal">cancel</field>
 			<field name="group" ref="account.group_account"/>
 		</record>
+		<record model="workflow.transition" id="contract_transition_cancel_draft">
+			<field name="act_from" ref="contract_activity_cancel"/>
+			<field name="act_to" ref="contract_activity_draft"/>
+			<field name="signal">draft</field>
+			<field name="group" ref="account.group_account"/>
+		</record>
+
 
 		<!-- wizards -->
 		<record model="ir.action.wizard" id="wizard_invoice_contract">
