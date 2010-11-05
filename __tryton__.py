@@ -12,6 +12,7 @@
     'xml': [
         'contract.xml',
         'party.xml',
+        'configuration.xml',
     ],
     'depends': [
         'account',

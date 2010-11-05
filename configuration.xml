@@ -1,0 +1,34 @@
+<?xml version="1.0"?>                                                                                                                                                                  
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+        <record model="ir.ui.view" id="contract_configuration_view_form">
+            <field name="model">contract.configuration</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <form string="Contract Configuration">
+                    <label name="description"/>
+                    <field name="description"/>
+                </form>
+                ]]>
+            </field>
+        </record>
+        <record model="ir.action.act_window" id="act_contract_configuration_form">
+            <field name="name">Contract Configuration</field>
+            <field name="res_model">contract.configuration</field>
+            <field name="view_type">form</field>
+        </record>
+        <record model="ir.action.act_window.view"
+            id="act_contract_configuration_view1">
+            <field name="sequence" eval="1"/>
+            <field name="view" ref="contract_configuration_view_form"/>
+            <field name="act_window" ref="act_contract_configuration_form"/>
+        </record>
+        <menuitem parent="contract_configuration"
+            action="act_contract_configuration_form"
+            id="menu_contract_configuration"
+            sequence="0" icon="tryton-list"/>
+    </data>
+</tryton>
