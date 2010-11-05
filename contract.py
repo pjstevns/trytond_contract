@@ -132,16 +132,19 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def _invoice_init(self, contract):
         invoice_obj = self.pool.get('account.invoice')
         invoice_address = contract.party.address_get(contract.party.id, type='invoice')
+        config_obj = self.pool.get('contract.configuration')
+        config = config_obj.browse(1)
+        description = config.description
+
         invoice = invoice_obj.create(dict(
             company=contract.company.id,
             type='out_invoice',
-            reference=contract.product.code or contract.product.name,
-            description=contract.description or contract.name,
+            description=description,
             state='draft',
             currency=contract.company.currency.id,
             journal=contract.journal.id,
             account=contract.party.account_receivable.id or contract.company.account_receivable.id,
-            payment_term=contract.payment_term.id or contract.party.payment_term.id,
+            payment_term=contract.party.payment_term.id or contract.payment_term.id,
             party=contract.party.id,
             invoice_address=invoice_address,
         ))
@@ -150,17 +153,23 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     def _invoice_append(self, invoice, contract, period):
         (last_date, next_date) = period
         line_obj = self.pool.get('account.invoice.line')
+
+        quantity = Decimal("%f" % (contract.interval_quant * contract.quantity))
+        unit_price = contract.product.list_price
+        if contract.list_price:
+            unit_price = contract.list_price
+        elif contract.discount:
+            unit_price = contract.list_price - (contract.list_price * contract.discount / 100)
+
         linedata = dict(
             type='line',
             product=contract.product.id,
             invoice=invoice.id,
-            description="%s (%s) %s - %s" % (contract.product.description or
-                                             contract.product.name,
-                                             contract.name,
+            description="%s %s - %s" % (contract.description or contract.product.description or contract.product.name,
                                              last_date, next_date),
-            quantity=Decimal("%f" % (contract.interval_quant * contract.quantity)),
+            quantity=quantity,
             unit=contract.product.default_uom.id,
-            unit_price=contract.product.list_price,
+            unit_price=unit_price,
             contract=contract.id,
             taxes=[],
         )
@@ -169,9 +178,17 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if account: 
             linedata['account'] = account.popitem()[1]
 
+        tax_rule_obj = self.pool.get('account.tax.rule')
         taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
-        for tax in taxes.items():
-            linedata['taxes'].append(('add',tax[1]))
+        for tax in taxes.keys():
+            pattern = {}
+            if contract.party.customer_tax_rule:
+                tax_ids = tax_rule_obj.apply(contract.party.customer_tax_rule, tax, pattern)
+                if tax_ids:
+                    for tax_id in tax_ids:
+                        linedata['taxes'].append(('add',tax_id))
+                    continue
+            linedata['taxes'].append(('add',tax))
 
         return line_obj.create(linedata)
 
