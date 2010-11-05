@@ -15,7 +15,7 @@ import logging
 log = logging.getLogger(__name__)
 
 STATES = {
-    'readonly': Not(Equal(Eval('state'), 'draft')),
+    'readonly': Not(In(Eval('state'), ['draft','hold'])),
 }
 
 class Contract(ModelWorkflow, ModelSQL, ModelView):
@@ -124,11 +124,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return res
 
     def write(self, ids, vals):
-        super(Contract, self).write(ids, vals)
         if 'state' in vals:
             self.workflow_trigger_trigger(ids)
 
-        return None
+        return super(Contract, self).write(ids, vals)
 
     def _invoice_init(self, contract):
         invoice_obj = self.pool.get('account.invoice')
