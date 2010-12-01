@@ -180,7 +180,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         tax_rule_obj = self.pool.get('account.tax.rule')
         taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
-        for tax in taxes.keys():
+        for tax in taxes[contract.product.id]:
             pattern = {}
             if contract.party.customer_tax_rule:
                 tax_ids = tax_rule_obj.apply(contract.party.customer_tax_rule, tax, pattern)
