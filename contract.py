@@ -159,7 +159,14 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if contract.list_price:
             unit_price = contract.list_price
         elif contract.discount:
-            unit_price = contract.list_price - (contract.list_price * contract.discount / 100)
+            unit_price = contract.product.list_price - (contract.product.list_price * contract.discount / 100)
+
+        if not unit_price:
+            # skip this contract
+            log.info("skip contract without unit_price: %s contract.product.list_price: %s contract.list_price: %s contract.discount: %s" %(
+                unit_price, contract.product.list_price, contract.list_price,
+                contract.discount))
+            return
 
         linedata = dict(
             type='line',
@@ -263,6 +270,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         """
         today = datetime.date.fromtimestamp(time.time())
         last_date = contract.next_invoice_date or contract.start_date or today
+        log.debug("last_date: %s" % last_date)
 
         if contract.interval == 'year':
             next_date = datetime.date(last_date.year + contract.interval_quant,
@@ -271,7 +279,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         elif contract.interval == 'month':
             next_year = last_date.year + (last_date.month + int(contract.interval_quant)) / 12
             next_month = (last_date.month + int(contract.interval_quant)) % 12 
-            next_date = datetime.date(next_year, next_month, last_date.day)
+            next_date = datetime.date(next_year, next_month, 1)
+            # shift day while compensating for overflow
+            if last_date.day > 1:
+                next_date = next_date + datetime.timedelta(last_date.day-1)
 
         elif contract.interval == 'week':
             delta = datetime.timedelta(0,0,0,0,0,0,contract.interval_quant)
@@ -376,7 +387,8 @@ class CreateNextInvoice(Wizard):
 
     def _next_invoice(self, data):
         contract_obj = self.pool.get('contract.contract')
-        contract_obj.create_next_invoice([data['id']])
+        for id in data['ids']:
+            contract_obj.create_next_invoice([id,])
         return {}
 
 CreateNextInvoice()
@@ -396,6 +408,7 @@ class CreateInvoiceBatch(Wizard):
     }
 
     def _invoice_batch(self, data):
+        log.debug("_invoice_batch: %s" % data)
         contract_obj = self.pool.get('contract.contract')
         contract_obj.create_invoice_batch()
         return {}
