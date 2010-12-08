@@ -73,6 +73,24 @@
 			</field>
 		</record>
 
+		<record model="ir.ui.view" id="contract_create_invoice_batch_init_view_form">
+			<field name="model">contract.contract.create_invoice_batch.init</field>
+			<field name="type">form</field>
+			<field name="arch" type="xml">
+				<![CDATA[
+				<form string="Invoice Date" col="2">
+					<image name="tryton-dialog-information"/>
+					<group col="2" id="invoice_date">
+						<label string="Invoice Date for created Invoice(s)?"
+							align="0.0" id="date" colspan="2"/>
+						<label name="invoice_date"/>
+						<field name="invoice_date"/>
+					</group>
+				</form>
+				]]>
+			</field>
+		</record>
+
 		<!-- connect views to navigation -->
 		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-users"/>
 
@@ -202,8 +220,6 @@
 			<field name="signal">draft</field>
 			<field name="group" ref="account.group_account"/>
 		</record>
-
-
 		<!-- wizards -->
 		<record model="ir.action.wizard" id="wizard_invoice_contract">
 			<field name="name">Create Next Invoice</field>
