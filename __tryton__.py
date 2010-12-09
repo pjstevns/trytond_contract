@@ -12,6 +12,7 @@
     'xml': [
         'contract.xml',
         'party.xml',
+        'invoice.xml',
         'configuration.xml',
     ],
     'depends': [

@@ -241,19 +241,6 @@
 		<menuitem parent="contract_menu" action="wizard_invoice_batch"
 			id="menu_invoice_batch"/>
 
-		<!-- batch actions on invoices -->
-		<record model="ir.action.wizard" id="invoice_batch_action_wizard">
-			<field name="name">Batch Actions</field>
-			<field name="wiz_name">contract.contract.invoice_batch_action</field>
-			<field name="model">account.invoice</field>
-		</record>
-		<record model="ir.action.keyword" id="invoice_batch_action_keyword">
-			<field name="keyword">form_action</field>
-			<field name="model">account.invoice,0</field>
-			<field name="action" ref="invoice_batch_action_wizard"/>
-		</record>
-
-
 	</data>
 </tryton>
 

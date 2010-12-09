@@ -509,7 +509,4 @@ class InvoiceBatchAction(Wizard):
             invoice_obj.workflow_trigger_validate(id, signal)
         return {}
 
-
-
-
 InvoiceBatchAction()

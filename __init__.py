@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 ##############################################################################
 #
-# Copyright (c) 2010 NFG - Paul J Stevens - www.nfg.nl
+# Copyright (c) 2011 NFG - Paul J Stevens - www.nfg.nl
 #
 # WARNING: This program as such is intended to be used by professional
 # programmers who take the whole responsability of assessing all potential
@@ -29,4 +29,5 @@
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
 
 from contract import *
+from invoice import *
 from configuration import *
