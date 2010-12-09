@@ -151,17 +151,21 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         ))
         return invoice_obj.browse([invoice])[0]
 
-    def _invoice_append(self, invoice, contract, period):
-        (last_date, next_date) = period
-        line_obj = self.pool.get('account.invoice.line')
-
-        quantity = Decimal("%f" % (contract.interval_quant * contract.quantity))
+    def _contract_unit_price(self, contract):
         unit_price = contract.product.list_price
         if contract.list_price:
             unit_price = contract.list_price
         elif contract.discount:
             unit_price = contract.product.list_price - (contract.product.list_price * contract.discount / 100)
+        return unit_price
 
+
+    def _invoice_append(self, invoice, contract, period):
+        (last_date, next_date) = period
+        line_obj = self.pool.get('account.invoice.line')
+
+        quantity = Decimal("%f" % (contract.interval_quant * contract.quantity))
+        unit_price = self._contract_unit_price(contract)
         if not unit_price:
             # skip this contract
             log.info("skip contract without unit_price: %s contract.product.list_price: %s contract.list_price: %s contract.discount: %s" %(
@@ -235,9 +239,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         contract_obj = self.pool.get('contract.contract')
         contract = self.browse(ids)[0]
 
-        if not contract.state == 'active':
-            return {}
-
         period = self._check_contract(contract)
         if not period:
             return {}
@@ -269,6 +270,13 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         contract is due for.
 
         """
+
+        if not contract.state == 'active':
+            return {}
+
+        if not self._contract_unit_price(contract):
+            return {}
+
         if not invoice_date:
             invoice_date = datetime.date.fromtimestamp(time.time())
         last_date = contract.next_invoice_date or contract.start_date or invoice_date
@@ -313,6 +321,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             invoice_date = data['form']['invoice_date']
         else:
             invoice_date = datetime.date.today()
+
+        log.info("create invoice batch with invoice_date: %s" % invoice_date)
 
         """ 
         get a list of all active contracts
@@ -402,7 +412,7 @@ class CreateNextInvoice(Wizard):
 CreateNextInvoice()
 
 class CreateInvoiceBatchInit(ModelView):
-    'Create Invoice Batch Init'
+    'Create Invoice Batch'
     _name = 'contract.contract.create_invoice_batch.init'
     _description = __doc__
     invoice_date = fields.Date('Invoice Date', help='Use date for generated invoices.')
@@ -448,3 +458,58 @@ class CreateInvoiceBatch(Wizard):
         return {}
 
 CreateInvoiceBatch()
+
+class InvoiceBatchActionInit(ModelView):
+    'Invoice Batch Action'
+    _name = 'contract.contract.invoice_batch_action.init'
+    _description = __doc__
+    signal = fields.Selection([
+        ('proforma','Proforma'),
+        ('draft','Draft'),
+        ('open', 'Open'),
+        ('cancel','Cancel'),
+    ], 'Change Invoice', help='Trigger workflow signal for all selected invoices' )
+
+InvoiceBatchActionInit()
+
+class InvoiceBatchAction(Wizard):
+    'Trigger action on batch of invoices'
+    _name='contract.contract.invoice_batch_action'
+    states = {
+        'init': {
+            'result': {
+                'actions': ['_init'],
+                'type': 'form',
+                'object': 'contract.contract.invoice_batch_action.init',
+                'state': [
+                    ('end', 'Cancel', 'tryton-cancel'),
+                    ('modify', 'Modify Invoices', 'tryton-ok', True),
+                ],
+            }
+        },
+
+        'modify': {
+            'actions': ['_batch_action'],
+            'result': {
+                'type': 'state',
+                'state': 'end',
+            },
+        },
+    }
+
+    def _batch_action(self, data):
+        log.debug("_batch_action: %s" % data)
+        invoice_obj = self.pool.get('account.invoice')
+        signal = None
+        if data.get('form') and data['form'].get('signal'):
+            signal = data['form']['signal']
+        else:
+            return {}
+        for id in data.get('ids'):
+            invoice_obj.workflow_trigger_validate(id, signal)
+        return {}
+
+
+
+
+InvoiceBatchAction()
