@@ -278,9 +278,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if not contract.state == 'active':
             return {}
 
-        if not self._contract_unit_price(contract):
-            return {}
-
         last_date = contract.next_invoice_date or contract.start_date or invoice_date
 
         if contract.interval == 'year':
@@ -353,7 +350,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         contracts = contract_obj.browse(contract_ids)
         for contract in contracts:
             period = self._check_contract(contract, invoice_date)
-            if period:
+            if period and period[2]:
                 key = contract.party.id
                 if not batch.get(key): batch[key] = []
                 batch[key].append((contract, period))
