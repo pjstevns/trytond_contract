@@ -7,6 +7,7 @@ from trytond.pyson import Eval, Not, If, In, Get
 from trytond.transaction import Transaction
 
 import datetime
+from dateutil.relativedelta import relativedelta
 import time
 import logging
 
@@ -130,7 +131,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         return super(Contract, self).write(ids, vals)
 
-    def _invoice_init(self, contract):
+    def _invoice_init(self, contract, invoice_date):
         invoice_obj = self.pool.get('account.invoice')
         invoice_address = contract.party.address_get(contract.party.id, type='invoice')
         config_obj = self.pool.get('contract.configuration')
@@ -148,6 +149,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             payment_term=contract.party.payment_term.id or contract.payment_term.id,
             party=contract.party.id,
             invoice_address=invoice_address,
+            invoice_date=invoice_date,
         ))
         return invoice_obj.browse([invoice])[0]
 
@@ -161,10 +163,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
 
     def _invoice_append(self, invoice, contract, period):
-        (last_date, next_date) = period
+        (last_date, next_date, quant) = period
         line_obj = self.pool.get('account.invoice.line')
 
-        quantity = Decimal("%f" % (contract.interval_quant * contract.quantity))
+        quantity = Decimal("%f" % quant)
         unit_price = self._contract_unit_price(contract)
         if not unit_price:
             # skip this contract
@@ -234,40 +236,42 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         return {}
 
+    def create_next_invoice(self, ids, data=None):
+        if data.get('form') and data['form'].get('invoice_date'):
+            invoice_date = data['form']['invoice_date']
+        else:
+            invoice_date = datetime.date.today()
 
-    def create_next_invoice(self, ids):
         contract_obj = self.pool.get('contract.contract')
         contract = self.browse(ids)[0]
 
-        period = self._check_contract(contract)
-        if not period:
-            return {}
+        period = self._check_contract(contract, invoice_date)
+        if not period: return {}
 
-        (last_date, next_date) = period
-        today = datetime.date.fromtimestamp(time.time())
+        log.debug("invoice_date: %s period: %s" %(invoice_date, period))
 
         ## create a new invoice
-        invoice = self._invoice_init(contract)
-        ## create invoice line
-        line = self._invoice_append(invoice, contract, (last_date, next_date))
+        invoice = self._invoice_init(contract, invoice_date)
 
-        ## open invoice
-        invoice.write(invoice.id, {'invoice_date': today})
-        self.write(contract.id, {'next_invoice_date': next_date})
+        ## create invoice lines
+        line = self._invoice_append(invoice, contract, period)
+        self.write(contract.id, {'next_invoice_date': period[1]})
+
 
         return invoice.id
 
 
-    def _check_contract(self, contract, invoice_date=None):
+    def _check_contract(self, contract, invoice_date):
         """
         returns tuple 'period' or False 
 
         False is returned if this contract is not up for billing at this 
         moment.
 
-        period is defined as (last_date, next_date) 
-        which are datetime values indicating the next billing period this
-        contract is due for.
+        period is defined as (last_date, next_date, quantity) 
+        where the first two are datetime values indicating the billing period this
+        contract is valid for, and the last indicates the quantity on the
+        invoice line (months, weeks, years)
 
         """
 
@@ -277,29 +281,24 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if not self._contract_unit_price(contract):
             return {}
 
-        if not invoice_date:
-            invoice_date = datetime.date.fromtimestamp(time.time())
         last_date = contract.next_invoice_date or contract.start_date or invoice_date
-        log.debug("last_date: %s" % last_date)
 
         if contract.interval == 'year':
-            next_date = datetime.date(last_date.year + contract.interval_quant,
-                                      last_date.month, 
-                                      last_date.day)
+            next_date = invoice_date + relativedelta(years=contract.interval_quant)
+            quant = relativedelta(next_date, last_date).years
+
         elif contract.interval == 'month':
-            next_year = last_date.year + (last_date.month + int(contract.interval_quant)) / 12
-            next_month = (last_date.month + int(contract.interval_quant)) % 12 
-            next_date = datetime.date(next_year, next_month, 1)
-            # shift day while compensating for overflow
-            if last_date.day > 1:
-                next_date = next_date + datetime.timedelta(last_date.day-1)
+            next_date = invoice_date + relativedelta(months=contract.interval_quant)
+            delta = relativedelta(next_date, last_date)
+            quant = delta.years * 12 + delta.months
 
         elif contract.interval == 'week':
-            delta = datetime.timedelta(0,0,0,0,0,0,contract.interval_quant)
-            next_date = last_date + delta
+            next_date = invoice_date + relativedelta(weeks=contract.interval_quant)
+            quant = (next_date - last_date).days/7
 
         elif contract.interval == 'day':
-            next_date = last_date + datetime.timedelta(contract.interval_quant)
+            next_date = invoice_date + relativedelta(days=contract.interval_quant)
+            quant = (next_date - last_date).days
 
         # don't invoice contracts unless they are due within 30 days
         # after the invoice_date
@@ -313,7 +312,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             log.info('contract stopped: %s >= %s' % (next_date, contract.stop_date))
             return False
 
-        return (last_date, next_date)
+        log.debug("last_date: %s next_date: %s quant: %s" % (last_date,next_date,quant))
+        return (last_date, next_date, quant)
 
 
     def create_invoice_batch(self, party=None, data=None):
@@ -364,11 +364,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         """
         res = []
         for party, info in batch.items():
-            invoice = self._invoice_init(info[0][0])
+            invoice = self._invoice_init(info[0][0], invoice_date)
             for (contract, period) in info:
                 self._invoice_append(invoice, contract, period)
                 self.write(contract.id, {'next_invoice_date': period[1]})
-            invoice.write(invoice.id, {'invoice_date': invoice_date})
             res.append(invoice.id)
         return res
  
@@ -390,11 +389,34 @@ class Party(ModelSQL, ModelView):
 
 Party()
 
+class CreateInvoiceInit(ModelView):
+    'Create Invoice Batch'
+    _name = 'contract.contract.create_invoice.init'
+    _description = __doc__
+    invoice_date = fields.Date('Invoice Date', help='Use date for generated invoices.')
+
+    def default_invoice_date(self):
+        return datetime.date.today()
+
+CreateInvoiceInit()
+
 class CreateNextInvoice(Wizard):
     'Create Next Invoice'
     _name='contract.contract.create_next_invoice'
     states = {
         'init': {
+            'result': {
+                'actions': ['_init'],
+                'type': 'form',
+                'object': 'contract.contract.create_invoice.init',
+                'state': [
+                    ('end', 'Cancel', 'tryton-cancel'),
+                    ('create', 'Create Invoices', 'tryton-ok', True),
+                ],
+            }
+        },
+
+        'create': {
             'actions': ['_next_invoice'],
             'result': {
                 'type': 'state',
@@ -406,21 +428,10 @@ class CreateNextInvoice(Wizard):
     def _next_invoice(self, data):
         contract_obj = self.pool.get('contract.contract')
         for id in data['ids']:
-            contract_obj.create_next_invoice([id,])
+            contract_obj.create_next_invoice([id,],data=data)
         return {}
 
 CreateNextInvoice()
-
-class CreateInvoiceBatchInit(ModelView):
-    'Create Invoice Batch'
-    _name = 'contract.contract.create_invoice_batch.init'
-    _description = __doc__
-    invoice_date = fields.Date('Invoice Date', help='Use date for generated invoices.')
-
-    def default_invoice_date(self):
-        return datetime.date.today()
-
-CreateInvoiceBatchInit()
 
 
 class CreateInvoiceBatch(Wizard):
@@ -431,7 +442,7 @@ class CreateInvoiceBatch(Wizard):
             'result': {
                 'actions': ['_init'],
                 'type': 'form',
-                'object': 'contract.contract.create_invoice_batch.init',
+                'object': 'contract.contract.create_invoice.init',
                 'state': [
                     ('end', 'Cancel', 'tryton-cancel'),
                     ('create', 'Create Invoices', 'tryton-ok', True),
