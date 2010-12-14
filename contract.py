@@ -314,7 +314,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
 
     def create_invoice_batch(self, party=None, data=None):
-        if data.get('form') and data['form'].get('invoice_date'):
+        if data and data.get('form') and data['form'].get('invoice_date'):
             invoice_date = data['form']['invoice_date']
         else:
             invoice_date = datetime.date.today()
