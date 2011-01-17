@@ -279,23 +279,25 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             return {}
 
         last_date = contract.next_invoice_date or contract.start_date or invoice_date
+        next_date = last_date
 
-        if contract.interval == 'year':
-            next_date = invoice_date + relativedelta(years=contract.interval_quant)
-            quant = relativedelta(next_date, last_date).years
+        while next_date < invoice_date:
+            if contract.interval == 'year':
+                next_date = next_date + relativedelta(years=contract.interval_quant)
+                quant = relativedelta(next_date, last_date).years
 
-        elif contract.interval == 'month':
-            next_date = invoice_date + relativedelta(months=contract.interval_quant)
-            delta = relativedelta(next_date, last_date)
-            quant = delta.years * 12 + delta.months
+            elif contract.interval == 'month':
+                next_date = next_date + relativedelta(months=contract.interval_quant)
+                delta = relativedelta(next_date, last_date)
+                quant = delta.years * 12 + delta.months
 
-        elif contract.interval == 'week':
-            next_date = invoice_date + relativedelta(weeks=contract.interval_quant)
-            quant = (next_date - last_date).days/7
+            elif contract.interval == 'week':
+                next_date = next_date + relativedelta(weeks=contract.interval_quant)
+                quant = (next_date - last_date).days/7
 
-        elif contract.interval == 'day':
-            next_date = invoice_date + relativedelta(days=contract.interval_quant)
-            quant = (next_date - last_date).days
+            elif contract.interval == 'day':
+                next_date = next_date + relativedelta(days=contract.interval_quant)
+                quant = (next_date - last_date).days
 
         # don't invoice contracts unless they are due within 30 days
         # after the invoice_date
