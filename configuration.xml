@@ -9,9 +9,12 @@ this repository contains the full copyright notices and license terms. -->
             <field name="arch" type="xml">
                 <![CDATA[
                 <form string="Contract Configuration">
-                    <label name="description"/>
-                    <field name="description"/>
-                </form>
+			<label name="description"/>
+			<field name="description"/>
+			<newline/>
+			<label name="payment_term"/>
+			<field name="payment_term"/>
+		</form>
                 ]]>
             </field>
         </record>

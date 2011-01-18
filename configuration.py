@@ -11,8 +11,11 @@ class Configuration(ModelSingleton, ModelSQL, ModelView):
     _description = __doc__
 
     description = fields.Char('Contract Description', 
-                                              translate=True, 
-                                              help="Description used on created Invoices")
+                              translate=True, 
+                              help="Description used on created Invoices")
+    payment_term = fields.Many2One('account.invoice.payment_term',
+                                   'Payment Term',
+                                   help="Default Payment Term on new Contracts")
 
     def default_description(self):
         return 'Contract Invoice'

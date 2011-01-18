@@ -30,4 +30,5 @@
 
 from contract import *
 from invoice import *
+from party import *
 from configuration import *

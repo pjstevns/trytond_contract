@@ -92,9 +92,14 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return datetime.date.fromtimestamp(time.time())
 
     def default_interval_quant(self):
-        return Decimal("3.0")
+        return Decimal("1.0")
 
     def default_payment_term(self):
+        config_obj = self.pool.get('contract.configuration')
+        config = config_obj.browse(1)
+        if config.payment_term:
+            return config.payment_term.id
+
         company_id = self.default_company()
         company_obj = self.pool.get('company.company')
         company = company_obj.browse(company_id)
@@ -119,10 +124,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if vals.get('party'):
             party = party_obj.browse(vals['party'])
             payment_term = party.payment_term or False
+            discount = party.discount or Decimal("0.0")
             if payment_term:
                 res['payment_term'] = payment_term.id
                 res['payment_term.rec_name'] = payment_term_obj.browse(
                     res['payment_term']).rec_name
+            res['discount'] = discount
         return res
 
     def write(self, ids, vals):
@@ -381,14 +388,6 @@ class InvoiceLine(ModelSQL, ModelView):
     contract = fields.Many2One('contract.contract', 'Contract')
 
 InvoiceLine()
-
-class Party(ModelSQL, ModelView):
-    """Party"""
-    _name = 'party.party'
-    contracts = fields.One2Many('contract.contract', 'party', 'Contracts',
-                               readonly=True)
-
-Party()
 
 class CreateInvoiceInit(ModelView):
     'Create Invoice Batch'

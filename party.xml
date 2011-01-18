@@ -10,6 +10,11 @@
 					<xpath expr="/form/notebook/page[@id=&quot;accounting&quot;]"
 						position="after">
 						<page string="Contracts" col="4" id="contracts">
+							<group id="discount" col="2" colspan="4">
+								<label name="discount"/>
+								<field name="discount"/>
+							</group>
+							<newline/>
 							<field name="contracts"/>
 						</page>
 					</xpath>
