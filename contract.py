@@ -278,10 +278,21 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if not contract.state == 'active':
             return {}
 
+        # don't invoice contracts unless they are due within 30 days
+        # after the invoice_date
+        end = invoice_date + datetime.timedelta(NOTICE_DAYS)
+        
+        if contract.next_invoice_date and end < contract.next_invoice_date:
+            log.info('too early to invoice: %s + %d days < %s' %(invoice_date,
+                                                                 NOTICE_DAYS,
+                                                                 end))
+            return False
+
         last_date = contract.next_invoice_date or contract.start_date or invoice_date
         next_date = last_date
+        quant = 0
 
-        while next_date < invoice_date:
+        while next_date < end:
             if contract.interval == 'year':
                 next_date = next_date + relativedelta(years=contract.interval_quant)
                 quant = relativedelta(next_date, last_date).years
@@ -299,21 +310,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                 next_date = next_date + relativedelta(days=contract.interval_quant)
                 quant = (next_date - last_date).days
 
-        # don't invoice contracts unless they are due within 30 days
-        # after the invoice_date
-        end = invoice_date + datetime.timedelta(NOTICE_DAYS)
-        
-        if contract.next_invoice_date and end < contract.next_invoice_date:
-            log.info('too early to invoice: %s + 30 days < %s', invoice_date, next_date)
-            return False
-
         if next_date and contract.stop_date and next_date >= contract.stop_date:
             log.info('contract stopped: %s >= %s' % (next_date, contract.stop_date))
             return False
 
-        log.debug("last_date: %s next_date: %s quant: %s" % (last_date,next_date,quant))
+        log.debug("last_date: %s next_date: %s quant: %d" % (last_date,next_date,quant))
         return (last_date, next_date, quant)
-
 
     def create_invoice_batch(self, party=None, data=None):
         if data and data.get('form') and data['form'].get('invoice_date'):
