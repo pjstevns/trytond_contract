@@ -316,8 +316,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                 next_date = next_date + relativedelta(days=contract.interval_quant)
                 quant = (next_date - last_date).days
 
-        if next_date and contract.stop_date and next_date >= contract.stop_date:
-            log.info('contract stopped: %s >= %s' % (next_date, contract.stop_date))
+        if next_date and contract.stop_date and next_date > contract.stop_date:
+            log.info('contract stopped: %s > %s' % (next_date, contract.stop_date))
             return False
 
         log.debug("last_date: %s next_date: %s quant: %d" % (last_date,next_date,quant))
