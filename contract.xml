@@ -40,6 +40,8 @@
 							<label name="description"/> <field name="description"/>
 							<label name="list_price"/> <field name="list_price"/>
 							<label name="discount"/> <field name="discount"/>
+							<newline/>
+							<label name="reference"/><field name="reference"/>
 						</page>
 					</notebook>
 					<group col="6" colspan="6" id="state">
@@ -62,6 +64,8 @@
 					<field name="name" select="1"/>
 					<field name="party" select="1"/>
 					<field name="product" select="1"/>
+					<field name="reference" select="2"/>
+					<field name="description" select="2"/>
 					<field name="state" select="2"/>
 					<field name="interval" select="2"/>
 					<field name="interval_quant" select="2"/>

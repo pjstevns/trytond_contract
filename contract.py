@@ -34,6 +34,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                               states=STATES, domain=[('centralised', '=', False)])
     name = fields.Char('Name', required=True, translate=True)
     description = fields.Char('Description', size=None, translate=True)
+    reference = fields.Char('Reference', size=None, translate=True,
+                            states=STATES, help='Use for purchase orders')
     party = fields.Many2One('party.party', 'Party', required=True, 
                             states=STATES, on_change=['party'])
     product = fields.Many2One('product.product', 'Product', required=True,
@@ -209,6 +211,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                         linedata['taxes'].append(('add',tax_id))
                     continue
             linedata['taxes'].append(('add',tax))
+
+        if contract.reference and not invoice.reference:
+            invoice_obj = self.pool.get('account.invoice')
+            invoice_obj.write(invoice.id, {'reference': contract.reference})
 
         return line_obj.create(linedata)
 
