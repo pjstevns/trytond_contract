@@ -104,7 +104,6 @@
 		<record model="ir.action.act_window" id="act_contract_form">
 			<field name="name">Contracts</field>
 			<field name="res_model">contract.contract</field>
-			<field name="view_type">form</field>
 		</record>
 		<record model="ir.action.act_window.view" id="act_contract_form_view1">
 			<field name="sequence" eval="10"/>
@@ -122,7 +121,6 @@
 		<record model="ir.action.act_window" id="act_contract_new_form">
 			<field name="name">Contracts</field>
 			<field name="res_model">contract.contract</field>
-			<field name="view_type">form</field>
 		</record>
 		<record model="ir.action.act_window.view" id="act_contract_new_form_view1">
 			<field name="sequence" eval="10"/>

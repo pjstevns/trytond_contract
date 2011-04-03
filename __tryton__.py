@@ -3,7 +3,7 @@
 {
     'name': 'Recurrent invoicing contracts',
     'name_nl_NL': 'Factureren van periodieke contracten',
-    'version': '1.8.0',
+    'version': '1.9.0',
     'author': 'NFG',
     'email': 'info@nfg.nl',
     'website': 'http://www.nfg.nl/',
