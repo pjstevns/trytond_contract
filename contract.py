@@ -64,6 +64,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     ], 'Interval', required=True, states=STATES)
     interval_quant = fields.Integer('Interval count', states=STATES)
     next_invoice_date = fields.Date('Next Invoice', states=STATES)
+    opt_invoice_date = fields.Date('Temporary Next Invoice', readonly=True)
     start_date = fields.Date('Since', states=STATES)
     stop_date = fields.Date('Until')
     lines = fields.One2Many('account.invoice.line', 'contract', 'Invoice Lines',
@@ -267,7 +268,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         ## create invoice lines
         line = self._invoice_append(invoice, contract, period)
-        self.write(contract.id, {'next_invoice_date': period[1]})
+        self.write(contract.id, {'opt_invoice_date': period[1]})
 
 
         return invoice.id
@@ -337,26 +338,29 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         log.info("create invoice batch with invoice_date: %s" % invoice_date)
 
-        """ 
-        get a list of all active contracts
-        """
         contract_obj = self.pool.get('contract.contract')
-        query = [('state','=','active'), 
-                 ('start_date','<=',invoice_date),
-                ]
 
-        """
-        filter on party if required
-        """
-        if party:
-            if type(party) != type([1,]):
-                party = [party,]
-            query.append(('party','in',party))
-
-        contract_ids = contract_obj.search(query)
-
+        contract_ids = data.get('ids')
         if not contract_ids:
-            return []
+            """ 
+            get a list of all active contracts
+            """
+            query = [('state','=','active'), 
+                     ('start_date','<=',invoice_date),
+                    ]
+
+            """
+            filter on party if required
+            """
+            if party:
+                if type(party) != type([1,]):
+                    party = [party,]
+                query.append(('party','in',party))
+
+            contract_ids = contract_obj.search(query)
+
+            if not contract_ids:
+                return []
 
         """
         build the list of all billable contracts
@@ -380,7 +384,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             invoice = self._invoice_init(info[0][0], invoice_date)
             for (contract, period) in info:
                 self._invoice_append(invoice, contract, period)
-                self.write(contract.id, {'next_invoice_date': period[1]})
+                self.write(contract.id, {'opt_invoice_date': period[1]})
             res.append(invoice.id)
         return res
  
@@ -432,8 +436,7 @@ class CreateNextInvoice(Wizard):
 
     def _next_invoice(self, data):
         contract_obj = self.pool.get('contract.contract')
-        for id in data['ids']:
-            contract_obj.create_next_invoice([id,],data=data)
+        contract_obj.create_invoice_batch(data=data)
         return {}
 
 CreateNextInvoice()
