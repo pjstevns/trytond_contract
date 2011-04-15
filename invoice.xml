@@ -12,6 +12,29 @@
 			<field name="model">account.invoice,0</field>
 			<field name="action" ref="invoice_batch_action_wizard"/>
 		</record>
+		<record model="ir.trigger" id="invoice_open_trigger_contract">
+			<field name="name">Open Invoice</field>
+			<field name="model" search="[('model','=','account.invoice')]"/>
+			<field name="on_write">True</field>
+			<field name="condition">self.state == 'open'</field>
+			<field name="action_model" search="[('model','=','account.invoice')]"/>
+			<field name="action_function">set_next_invoice_date</field>
+		</record>
+
+		<record model="ir.ui.view" id="invoice_line_view_form">
+			<field name="model">account.invoice.line</field>
+			<field name="inherit" ref="account_invoice.invoice_line_view_form"/>
+			<field name="arch" type="xml">
+				<![CDATA[
+				<data>
+					<xpath expr="/form/notebook/page[@id=&quot;general&quot;]/field[@name=&quot;amount&quot;]" position="after">
+						<label name="contract"/>
+						<field name="contract"/>
+					</xpath>
+				</data>
+				]]>
+			</field>
+		</record>
 	</data>
 </tryton>
 
