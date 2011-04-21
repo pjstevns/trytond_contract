@@ -340,7 +340,9 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         contract_obj = self.pool.get('contract.contract')
 
-        contract_ids = data.get('ids')
+        contract_ids = None
+        if data:
+            contract_ids = data.get('ids')
         if not contract_ids:
             """ 
             get a list of all active contracts
