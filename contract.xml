@@ -96,7 +96,7 @@
 		</record>
 
 		<!-- connect views to navigation -->
-		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-users"/>
+		<menuitem name="Contracts" id="contract_menu" sequence="20" icon="tryton-party"/>
 
 		<menuitem name="Configuration" parent="contract_menu" id="contract_configuration" 
 			sequence="0" icon="tryton-preferences"/>
