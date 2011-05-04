@@ -6,8 +6,8 @@
     'version': '2.0.0',
     'author': 'NFG',
     'email': 'info@nfg.nl',
-    'website': 'http://www.nfg.nl/',
-    'description': '''Generate recurring invoices based on agreements.
+    'website': 'http://www.tryton.org/',
+    'description': '''Generate recurrent invoices based on agreements.
 ''',
     'xml': [
         'contract.xml',
