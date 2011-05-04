@@ -3,10 +3,10 @@
 {
     'name': 'Recurrent invoicing contracts',
     'name_nl_NL': 'Factureren van periodieke contracten',
-    'version': '2.0.0',
+    'version': '2.0.1',
     'author': 'NFG',
     'email': 'info@nfg.nl',
-    'website': 'http://www.tryton.org/',
+    'website': 'https://github.com/pjstevns/trytond_contract',
     'description': '''Generate recurrent invoices based on agreements.
 ''',
     'xml': [
