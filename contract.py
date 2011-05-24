@@ -18,7 +18,7 @@ STATES = {
 }
 
 
-NOTICE_DAYS = 30
+NOTICE_DAYS = 1
 
 class Contract(ModelWorkflow, ModelSQL, ModelView):
     """Contract Agreement"""
@@ -326,6 +326,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if next_date and contract.stop_date and next_date > contract.stop_date:
             log.info('contract stopped: %s > %s' % (next_date, contract.stop_date))
             return False
+
+        quant = quant * contract.quantity
 
         log.debug("last_date: %s next_date: %s quant: %d" % (last_date,next_date,quant))
         return (last_date, next_date, quant)
