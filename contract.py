@@ -343,7 +343,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         contract_obj = self.pool.get('contract.contract')
 
         contract_ids = None
-        if data:
+        if data and data.get('model') == 'contract.contract':
             contract_ids = data.get('ids')
         if not contract_ids:
             """ 
