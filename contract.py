@@ -1,15 +1,18 @@
 
 from __future__ import with_statement
-from decimal import Decimal
-from trytond.model import ModelView, ModelSQL, ModelWorkflow, fields
-from trytond.wizard import Wizard
-from trytond.pyson import Eval, Not, If, In, Get
-from trytond.transaction import Transaction
 
 import datetime
 from dateutil.relativedelta import relativedelta
 import time
 import logging
+from decimal import Decimal
+
+from trytond.model import ModelView, ModelSQL, ModelWorkflow, fields
+from trytond.wizard import Wizard
+from trytond.pyson import Eval, Not, If, In, Get
+from trytond.transaction import Transaction
+from trytond.pool import Pool
+
 
 log = logging.getLogger(__name__)
 
@@ -98,29 +101,51 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return Decimal("1.0")
 
     def default_payment_term(self):
-        config_obj = self.pool.get('contract.configuration')
+        pool = Pool()
+        config_obj = pool.get('contract.configuration')
         config = config_obj.browse(1)
         if config.payment_term:
             return config.payment_term.id
 
         company_id = self.default_company()
-        company_obj = self.pool.get('company.company')
+        company_obj = pool.get('company.company')
         company = company_obj.browse(company_id)
         if company and company.payment_term:
             return company.payment_term.id
         return False
 
     def default_journal(self):
-        journal_obj = self.pool.get('account.journal')
+        journal_obj = Pool().get('account.journal')
         journal_ids = journal_obj.search([('type','=','revenue')], limit=1)
         if journal_ids:
             return journal_ids[0]
         return False
 
+    def wkf_draft(self, contract):
+        self.write(contract.id, {
+            'state': 'draft'
+        })
+        
+    def wkf_active(self, contract):
+        self.write(contract.id, {
+            'state': 'active'
+        })
+       
+    def wkf_hold(self, contract):
+        self.write(contract.id, {
+            'state': 'hold'
+        })    
+    
+    def wkf_canceled(self, contract):
+        self.write(contract.id, {
+            'state': 'canceled'
+        })    
+
     def on_change_party(self, vals):
-        party_obj = self.pool.get('party.party')
-        address_obj = self.pool.get('party.address')
-        payment_term_obj = self.pool.get('account.invoice.payment_term')
+        pool = Pool()
+        party_obj = pool.get('party.party')
+        address_obj = pool.get('party.address')
+        payment_term_obj = pool.get('account.invoice.payment_term')
         res = {
             'invoice_address': False,
         }
@@ -142,9 +167,10 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return super(Contract, self).write(ids, vals)
 
     def _invoice_init(self, contract, invoice_date):
-        invoice_obj = self.pool.get('account.invoice')
+        pool = Pool()
+        invoice_obj = pool.get('account.invoice')
         invoice_address = contract.party.address_get(contract.party.id, type='invoice')
-        config_obj = self.pool.get('contract.configuration')
+        config_obj = pool.get('contract.configuration')
         config = config_obj.browse(1)
         description = config.description
 
@@ -173,8 +199,9 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
 
     def _invoice_append(self, invoice, contract, period):
+        pool = Pool()
         (last_date, next_date, quant) = period
-        line_obj = self.pool.get('account.invoice.line')
+        line_obj = pool.get('account.invoice.line')
 
         quantity = Decimal("%f" % quant)
         unit_price = self._contract_unit_price(contract)
@@ -201,7 +228,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         if account: 
             linedata['account'] = account.popitem()[1]
 
-        tax_rule_obj = self.pool.get('account.tax.rule')
+        tax_rule_obj = pool.get('account.tax.rule')
         taxes = contract.product.get_taxes([contract.product.id], 'customer_taxes_used')
         for tax in taxes[contract.product.id]:
             pattern = {}
@@ -214,7 +241,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             linedata['taxes'].append(('add',tax))
 
         if contract.reference and not invoice.reference:
-            invoice_obj = self.pool.get('account.invoice')
+            invoice_obj = pool.get('account.invoice')
             invoice_obj.write(invoice.id, {'reference': contract.reference})
 
         return line_obj.create(linedata)
@@ -227,7 +254,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         valid credentials such as an initial payment.
 
         """
-        contract_obj = self.pool.get('contract.contract')
+        pool = Pool()
+        contract_obj = pool.get('contract.contract')
         contract = self.browse(ids)[0]
         if not contract.state == 'active':
             return {}
@@ -235,8 +263,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         for id in ids:
             self.workflow_trigger_validate(id, 'cancel')
 
-        invoice_obj = self.pool.get('account.invoice')
-        invoice_line_obj = self.pool.get('account.invoice.line')
+        invoice_obj = pool.get('account.invoice')
+        invoice_line_obj = pool.get('account.invoice.line')
         line_ids = invoice_line_obj.search([('contract','in',ids)])
         if not line_ids:
             return {}
@@ -250,12 +278,13 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         return {}
 
     def create_next_invoice(self, ids, data=None):
+        pool = Pool()
         if data.get('form') and data['form'].get('invoice_date'):
             invoice_date = data['form']['invoice_date']
         else:
             invoice_date = datetime.date.today()
 
-        contract_obj = self.pool.get('contract.contract')
+        contract_obj = pool.get('contract.contract')
         contract = self.browse(ids)[0]
 
         period = self._check_contract(contract, invoice_date)
@@ -269,7 +298,6 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         ## create invoice lines
         line = self._invoice_append(invoice, contract, period)
         self.write(contract.id, {'opt_invoice_date': period[1]})
-
 
         return invoice.id
 
@@ -340,7 +368,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
 
         log.info("create invoice batch with invoice_date: %s" % invoice_date)
 
-        contract_obj = self.pool.get('contract.contract')
+        contract_obj = Pool().get('contract.contract')
 
         contract_ids = None
         if data and data.get('model') == 'contract.contract':
@@ -439,7 +467,7 @@ class CreateNextInvoice(Wizard):
     }
 
     def _next_invoice(self, data):
-        contract_obj = self.pool.get('contract.contract')
+        contract_obj = Pool().get('contract.contract')
         contract_obj.create_invoice_batch(data=data)
         return {}
 
@@ -476,7 +504,7 @@ class CreateInvoiceBatch(Wizard):
 
     def _invoice_batch(self, data):
         log.debug("_invoice_batch: %s" % data)
-        contract_obj = self.pool.get('contract.contract')
+        contract_obj = Pool().get('contract.contract')
         contract_obj.create_invoice_batch(data=data)
         return {}
 

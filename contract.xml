@@ -61,17 +61,17 @@
 			<field name="arch" type="xml">
 				<![CDATA[
 				<tree string="Contracts">
-					<field name="name" select="1"/>
-					<field name="party" select="1"/>
-					<field name="product" select="1"/>
-					<field name="reference" select="2"/>
-					<field name="description" select="2"/>
-					<field name="state" select="2"/>
-					<field name="interval" select="2"/>
-					<field name="interval_quant" select="2"/>
-					<field name="start_date" select="2"/>
-					<field name="stop_date" select="2"/>
-					<field name="next_invoice_date" select="2"/>
+					<field name="name"/>
+					<field name="party"/>
+					<field name="product"/>
+					<field name="reference"/>
+					<field name="description"/>
+					<field name="state"/>
+					<field name="interval"/>
+					<field name="interval_quant"/>
+					<field name="start_date"/>
+					<field name="stop_date"/>
+					<field name="next_invoice_date"/>
 				</tree>
 				]]>
 			</field>
@@ -86,7 +86,7 @@
 					<image name="tryton-dialog-information"/>
 					<group col="2" id="invoice_date">
 						<label string="Invoice Date for created Invoice(s)?"
-							align="0.0" id="date" colspan="2"/>
+							xalign="0.0" id="date" colspan="2"/>
 						<label name="invoice_date"/>
 						<field name="invoice_date"/>
 					</group>
@@ -151,27 +151,23 @@
 		<record model="workflow.activity" id="contract_activity_draft">
 			<field name="name">draft</field>
 			<field name="workflow" ref="contract_workflow"/>
-			<field name="kind">function</field>
-			<field name="action">write({'state':'draft'})</field>
+			<field name="method">wkf_draft</field>
 			<field name="flow_start" eval="True"/>
 		</record>
 		<record model="workflow.activity" id="contract_activity_active">
 			<field name="name">active</field>
 			<field name="workflow" ref="contract_workflow"/>
-			<field name="kind">function</field>
-			<field name="action">write({'state':'active'})</field>
+			<field name="method">wkf_active</field>
 		</record>
 		<record model="workflow.activity" id="contract_activity_hold">
 			<field name="name">hold</field>
 			<field name="workflow" ref="contract_workflow"/>
-			<field name="kind">function</field>
-			<field name="action">write({'state':'hold'})</field>
+			<field name="method">wkf_hold</field>
 		</record>
 		<record model="workflow.activity" id="contract_activity_cancel">
 			<field name="name">cancel</field>
 			<field name="workflow" ref="contract_workflow"/>
-			<field name="kind">function</field>
-			<field name="action">write({'state':'canceled'})</field>
+			<field name="method">wkf_canceled</field>
 		</record>
 		<!-- workflow transitions -->
 		<record model="workflow.transition" id="contract_transition_draft_active">
@@ -235,7 +231,7 @@
 
 		<record model="ir.action.keyword" id="wizard_invoice_contract_keyword">
 			<field name="keyword">form_action</field>
-			<field name="model">contract.contract,0</field>
+			<field name="model">contract.contract,-1</field>
 			<field name="action" ref="wizard_invoice_contract"/>
 		</record>
 

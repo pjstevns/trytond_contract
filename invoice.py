@@ -2,6 +2,7 @@
 from __future__ import with_statement
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.wizard import Wizard
+from trytond.pool import Pool
 
 import logging
 
@@ -13,9 +14,10 @@ class Invoice(ModelSQL, ModelView):
 
     def set_next_invoice_date(self, ids, trigger_id):
         """Set next_invoice_date on contracts connected to invoice lines"""
-        invoice_obj = self.pool.get('account.invoice')
-        invoice_line_obj = self.pool.get('account.invoice.line')
-        contract_obj = self.pool.get('contract.contract')
+        pool = Pool()
+        invoice_obj = pool.get('account.invoice')
+        invoice_line_obj = pool.get('account.invoice.line')
+        contract_obj = pool.get('contract.contract')
 
         log.debug("set_next_invoice_date %s %s" %(ids, trigger_id))
         invoices = invoice_obj.browse(ids)
@@ -78,8 +80,9 @@ class InvoiceBatchAction(Wizard):
     }
 
     def _batch_action(self, data):
+        pool = Pool()
         log.debug("_batch_action: %s" % data)
-        invoice_obj = self.pool.get('account.invoice')
+        invoice_obj = pool.get('account.invoice')
         signal = None
         if data.get('form') and data['form'].get('signal'):
             signal = data['form']['signal']

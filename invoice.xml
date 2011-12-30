@@ -9,7 +9,7 @@
 		</record>
 		<record model="ir.action.keyword" id="invoice_batch_action_keyword">
 			<field name="keyword">form_action</field>
-			<field name="model">account.invoice,0</field>
+			<field name="model">account.invoice,-1</field>
 			<field name="action" ref="invoice_batch_action_wizard"/>
 		</record>
 		<record model="ir.trigger" id="invoice_open_trigger_contract">
