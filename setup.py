@@ -1,7 +1,7 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import re
 
-info = eval(open('__tryton__.py').read())
+info = eval(open('trytond/modules/contract/__tryton__.py').read())
 major_version, minor_version, _ = info.get('version', '0.0.1').split('.', 2)
 major_version = int(major_version)
 minor_version = int(minor_version)
@@ -22,13 +22,9 @@ setup(name='trytond_contract',
       author=info.get('author',''),
       author_email=info.get('email',''),
       url=info.get('website',''),
-      long_description="""\
-""",
+      long_description=open('README.txt').read(),
       classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
-      package_dir={'trytond.modules.contract': '.'},
-      packages=[
-          'trytond.modules.contract',
-      ],
+      packages=find_packages(exclude=['ez_setup']),
       package_data={
           'trytond.modules.contract': info.get('xml', []) \
           + info.get('translation', []),
