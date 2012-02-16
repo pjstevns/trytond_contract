@@ -19,7 +19,12 @@ log = logging.getLogger(__name__)
 STATES = {
     'readonly': Not(In(Eval('state'), ['draft', 'hold'])),
 }
-
+INTERVAL = [
+    ('day', 'Day'),
+    ('week', 'Week'),
+    ('month', 'Month'),
+    ('year', 'Year'),
+]
 
 NOTICE_DAYS = 1
 
@@ -45,7 +50,7 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
     party = fields.Many2One('party.party', 'Party', required=True,
                             states=STATES, on_change=['party'])
     product = fields.Many2One('product.product', 'Product', required=True,
-                              states=STATES)
+                              states=STATES, on_change=['product'])
     list_price = fields.Numeric('List Price', states=STATES,
                                 digits=(16, 4),
                                help='Fixed-price override. Leave at ' \
@@ -65,12 +70,8 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
         ('terminated', 'Terminated'),
         ('canceled', 'Canceled'),
     ], 'State', readonly=True)
-    interval = fields.Selection([
-        ('day', 'Day'),
-        ('week', 'Week'),
-        ('month', 'Month'),
-        ('year', 'Year'),
-    ], 'Interval', required=True, states=STATES)
+    interval = fields.Selection(INTERVAL,
+                                'Interval', required=True, states=STATES)
     interval_quant = fields.Integer('Interval count', states=STATES)
     next_invoice_date = fields.Date('Next Invoice', states=STATES)
     opt_invoice_date = fields.Date('Temporary Next Invoice', readonly=True)
@@ -143,6 +144,12 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
             'state': 'hold'
         })
 
+    def wkf_terminated(self, contract):
+        self.write(contract.id, {
+            'stop_date': contract.next_invoice_date,
+            'state': 'terminated'
+        })
+
     def wkf_canceled(self, contract):
         self.write(contract.id, {
             'state': 'canceled'
@@ -164,6 +171,19 @@ class Contract(ModelWorkflow, ModelSQL, ModelView):
                 res['payment_term.rec_name'] = payment_term_obj.browse(
                     res['payment_term']).rec_name
             res['discount'] = discount
+        return res
+
+    def on_change_product(self, vals):
+        pool = Pool()
+        product_obj = pool.get('product.product')
+        res = {}
+        if vals.get('product'):
+            product = product_obj.browse(vals['product'])
+            default_uom = product.default_uom.name.lower()
+            valid_uom = [x[0] for x in INTERVAL]
+            if default_uom in valid_uom:
+                res['interval'] = default_uom
+                res['interval_quant'] = 1
         return res
 
     def write(self, ids, vals):
