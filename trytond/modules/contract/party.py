@@ -6,6 +6,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 class Party(ModelSQL, ModelView):
     """Party"""
     _name = 'party.party'
@@ -13,11 +14,10 @@ class Party(ModelSQL, ModelView):
 
     contracts = fields.One2Many('contract.contract', 'party', 'Contracts',
                                readonly=True)
-    discount = fields.Numeric('Discount (%)',
-                              digits=(4,2),
-                             help="""Default Discount percentage on the list_price
-                              for this party""")
+    discount = fields.Numeric(
+        'Discount (%)',
+        digits=(4, 2),
+        help="""Default Discount percentage on the list_price
+        for this party""")
 
 Party()
-
-
